@@ -3,33 +3,55 @@ let map;
 let currentBasin = 'camana';
 let gibsLayer;
 let baseDarkLayer;
-let sarLayerGroup = L.layerGroup();
-let floodLayerGroup = L.layerGroup();
-let sigridLayerGroup = L.layerGroup();
-let riverLayerGroup = L.layerGroup();
+let sarLayerGroup;
+let floodLayerGroup;
+let sigridLayerGroup;
+let riverLayerGroup;
 
 document.addEventListener('DOMContentLoaded', () => {
   initMap();
   initClock();
   setupEventListeners();
   loadBasinData('camana');
+
+  // Trigger resize recalculation to guarantee Leaflet paints all tiles
+  setTimeout(() => {
+    if (map) {
+      map.invalidateSize();
+    }
+  }, 200);
+
+  window.addEventListener('resize', () => {
+    if (map) {
+      map.invalidateSize();
+    }
+  });
 });
 
 // Initialize Leaflet Map
 function initMap() {
   const initial = BASINS.camana;
+  
+  // Layer Groups
+  sarLayerGroup = L.layerGroup();
+  floodLayerGroup = L.layerGroup();
+  sigridLayerGroup = L.layerGroup();
+  riverLayerGroup = L.layerGroup();
+
   map = L.map('map', {
     center: initial.center,
     zoom: initial.zoom,
-    zoomControl: false
+    zoomControl: false,
+    preferCanvas: true
   });
 
   // Zoom control top-left
   L.control.zoom({ position: 'topleft' }).addTo(map);
 
-  // Base Map 1: Dark Matter (CartoDB) for clear radar data contrast
+  // Base Map: CartoDB Dark Matter for clear radar data contrast
   baseDarkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd',
     maxZoom: 19
   }).addTo(map);
 
@@ -44,8 +66,10 @@ function initMap() {
 
   // Map mousemove for coordinates HUD
   map.on('mousemove', (e) => {
-    document.getElementById('coords-display').textContent = 
-      `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
+    const coordsEl = document.getElementById('coords-display');
+    if (coordsEl) {
+      coordsEl.textContent = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
+    }
   });
 }
 
@@ -60,7 +84,8 @@ function updateGibsLayer(dateStr) {
 
   gibsLayer = L.tileLayer(gibsUrl, {
     attribution: '&copy; NASA EOSDIS GIBS',
-    maxZoom: 9,
+    maxNativeZoom: 9, // Native max zoom from NASA GIBS
+    maxZoom: 19,       // Allow stretching at deeper zoom levels
     opacity: 0.85
   });
 
@@ -76,13 +101,13 @@ function updateGibsLayer(dateStr) {
 function loadBasinData(basinKey) {
   currentBasin = basinKey;
   const basin = BASINS[basinKey];
-  if (!basin) return;
+  if (!basin || !map) return;
 
   // Clear previous vector layers
-  sarLayerGroup.clearLayers();
-  floodLayerGroup.clearLayers();
-  sigridLayerGroup.clearLayers();
-  riverLayerGroup.clearLayers();
+  if (sarLayerGroup) sarLayerGroup.clearLayers();
+  if (floodLayerGroup) floodLayerGroup.clearLayers();
+  if (sigridLayerGroup) sigridLayerGroup.clearLayers();
+  if (riverLayerGroup) riverLayerGroup.clearLayers();
 
   // 1. Draw River Centerline
   const riverPolyline = L.polyline(basin.riverPath, {
@@ -98,7 +123,7 @@ function loadBasinData(basinKey) {
     const poly = L.polygon(zone.coordinates, {
       color: '#e11d48',
       fillColor: '#f43f5e',
-      fillOpacity: 0.22,
+      fillOpacity: 0.25,
       weight: 2,
       dashArray: '4, 4'
     }).bindPopup(`
@@ -114,9 +139,9 @@ function loadBasinData(basinKey) {
   // 3. Draw SAR Flood Detected Polygons (Radar thresholding simulation)
   basin.floodPolygons.forEach(fp => {
     const floodPoly = L.polygon(fp.coordinates, {
-      color: '#2563eb',
+      color: '#0284c7',
       fillColor: '#06b6d4',
-      fillOpacity: 0.55,
+      fillOpacity: 0.60,
       weight: 2
     }).bindPopup(`
       <div class="text-xs space-y-1">
@@ -131,15 +156,29 @@ function loadBasinData(basinKey) {
   });
 
   // 4. Update HUD and Sidebar stats
-  document.getElementById('active-basin-name').textContent = basin.name;
-  document.getElementById('risk-level').textContent = basin.riskLevel;
-  document.getElementById('risk-level').className = `text-xs font-mono px-2 py-0.5 rounded border ${basin.riskClass}`;
-  document.getElementById('risk-desc').innerHTML = basin.description;
-  document.getElementById('stat-hectares').textContent = basin.cropsHectares;
-  document.getElementById('stat-pop').textContent = basin.populationRisk;
+  const basinNameEl = document.getElementById('active-basin-name');
+  if (basinNameEl) basinNameEl.textContent = basin.name;
 
-  // Fly smoothly to basin
-  map.flyTo(basin.center, basin.zoom, { duration: 1.5 });
+  const riskLevelEl = document.getElementById('risk-level');
+  if (riskLevelEl) {
+    riskLevelEl.textContent = basin.riskLevel;
+    riskLevelEl.className = `text-xs font-mono px-2 py-0.5 rounded border ${basin.riskClass}`;
+  }
+
+  const riskDescEl = document.getElementById('risk-desc');
+  if (riskDescEl) riskDescEl.innerHTML = basin.description;
+
+  const statHectaresEl = document.getElementById('stat-hectares');
+  if (statHectaresEl) statHectaresEl.textContent = basin.cropsHectares;
+
+  const statPopEl = document.getElementById('stat-pop');
+  if (statPopEl) statPopEl.textContent = basin.populationRisk;
+
+  // Fly smoothly to basin and ensure layout invalidation
+  map.flyTo(basin.center, basin.zoom, { duration: 1.2 });
+  setTimeout(() => {
+    map.invalidateSize();
+  }, 300);
 }
 
 // Basin switcher button handler
@@ -153,61 +192,82 @@ function zoomToBasin(basinKey) {
 // UI and Layer Checkbox Event Listeners
 function setupEventListeners() {
   // GIBS layer toggle
-  document.getElementById('layer-gibs').addEventListener('change', (e) => {
-    if (e.target.checked) {
-      if (!map.hasLayer(gibsLayer)) gibsLayer.addTo(map);
-      gibsLayer.bringToBack();
-      baseDarkLayer.bringToBack();
-    } else {
-      if (map.hasLayer(gibsLayer)) map.removeLayer(gibsLayer);
-    }
-  });
+  const gibsCheckbox = document.getElementById('layer-gibs');
+  if (gibsCheckbox) {
+    gibsCheckbox.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        if (!map.hasLayer(gibsLayer)) gibsLayer.addTo(map);
+        gibsLayer.bringToBack();
+        baseDarkLayer.bringToBack();
+      } else {
+        if (map.hasLayer(gibsLayer)) map.removeLayer(gibsLayer);
+      }
+    });
+  }
 
   // Date picker change for NASA GIBS
-  document.getElementById('date-picker').addEventListener('change', (e) => {
-    updateGibsLayer(e.target.value);
-  });
+  const datePicker = document.getElementById('date-picker');
+  if (datePicker) {
+    datePicker.addEventListener('change', (e) => {
+      updateGibsLayer(e.target.value);
+    });
+  }
 
   // SAR layer toggle
-  document.getElementById('layer-sar').addEventListener('change', (e) => {
-    if (e.target.checked) {
-      map.addLayer(sarLayerGroup);
-    } else {
-      map.removeLayer(sarLayerGroup);
-    }
-  });
+  const sarCheckbox = document.getElementById('layer-sar');
+  if (sarCheckbox) {
+    sarCheckbox.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        map.addLayer(sarLayerGroup);
+      } else {
+        map.removeLayer(sarLayerGroup);
+      }
+    });
+  }
 
   // Flood mask toggle
-  document.getElementById('layer-flood').addEventListener('change', (e) => {
-    if (e.target.checked) {
-      map.addLayer(floodLayerGroup);
-    } else {
-      map.removeLayer(floodLayerGroup);
-    }
-  });
+  const floodCheckbox = document.getElementById('layer-flood');
+  if (floodCheckbox) {
+    floodCheckbox.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        map.addLayer(floodLayerGroup);
+      } else {
+        map.removeLayer(floodLayerGroup);
+      }
+    });
+  }
 
   // SIGRID layer toggle
-  document.getElementById('layer-sigrid').addEventListener('change', (e) => {
-    if (e.target.checked) {
-      map.addLayer(sigridLayerGroup);
-    } else {
-      map.removeLayer(sigridLayerGroup);
-    }
-  });
+  const sigridCheckbox = document.getElementById('layer-sigrid');
+  if (sigridCheckbox) {
+    sigridCheckbox.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        map.addLayer(sigridLayerGroup);
+      } else {
+        map.removeLayer(sigridLayerGroup);
+      }
+    });
+  }
 
   // SAR Opacity slider
-  document.getElementById('sar-opacity').addEventListener('input', (e) => {
-    const val = e.target.value / 100;
-    floodLayerGroup.eachLayer(layer => {
-      if (layer.setStyle) layer.setStyle({ fillOpacity: val * 0.7 });
+  const sarOpacity = document.getElementById('sar-opacity');
+  if (sarOpacity) {
+    sarOpacity.addEventListener('input', (e) => {
+      const val = e.target.value / 100;
+      if (floodLayerGroup) {
+        floodLayerGroup.eachLayer(layer => {
+          if (layer.setStyle) layer.setStyle({ fillOpacity: val * 0.7 });
+        });
+      }
     });
-  });
+  }
 }
 
 // Clock
 function initClock() {
   const clockEl = document.getElementById('clock');
   function update() {
+    if (!clockEl) return;
     const now = new Date();
     clockEl.textContent = now.toISOString().substring(11, 19) + ' UTC';
   }
