@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Space Society - RadarSAR Arequipa Alerta Temprana</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+
+  <!-- Header / Navigation -->
+  <header class="bg-slate-900/90 backdrop-blur border-b border-cyan-900/40 px-6 py-3 flex items-center justify-between sticky top-0 z-50">
+    <div class="flex items-center space-x-4">
+      <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-700 flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/20">
+        🛰️
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            SPACE SOCIETY <span class="text-xs bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full font-mono">NISAR / SAR RADAR</span>
+          </h1>
+        </div>
+        <p class="text-xs text-slate-400">Sistema de Alerta Temprana de Inundaciones - Cuencas de Arequipa</p>
+      </div>
+    </div>
+
+    <!-- Quick Basin Selectors -->
+    <div class="flex items-center gap-2 bg-slate-950/80 p-1 rounded-lg border border-slate-800 text-xs">
+      <span class="text-slate-400 px-2 font-mono">Cuenca:</span>
+      <button onclick="zoomToBasin('camana')" class="basin-btn active px-3 py-1.5 rounded transition font-medium" id="btn-camana">
+        🌾 Camaná - Majes
+      </button>
+      <button onclick="zoomToBasin('chili')" class="basin-btn px-3 py-1.5 rounded transition font-medium" id="btn-chili">
+        🏙️ Río Chili (Ciudad)
+      </button>
+      <button onclick="zoomToBasin('ocona')" class="basin-btn px-3 py-1.5 rounded transition font-medium" id="btn-ocona">
+        🏞️ Valle Ocoña
+      </button>
+      <button onclick="zoomToBasin('tambo')" class="basin-btn px-3 py-1.5 rounded transition font-medium" id="btn-tambo">
+        🌊 Valle Tambo
+      </button>
+    </div>
+
+    <!-- Live Status Pill -->
+    <div class="flex items-center space-x-3 text-xs">
+      <div class="flex items-center gap-2 bg-emerald-950/60 border border-emerald-600/50 text-emerald-400 px-3 py-1.5 rounded-full font-mono">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        STREAMING NASA GIBS ACTIVO
+      </div>
+      <div class="font-mono text-slate-400" id="clock">--:--:-- UTC</div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 flex overflow-hidden relative">
+
+    <!-- Left Sidebar: Controls & Science -->
+    <aside class="w-96 bg-slate-900/95 border-r border-slate-800 flex flex-col p-4 overflow-y-auto space-y-5 z-20 text-sm">
+      
+      <!-- Early Warning Card -->
+      <div class="bg-gradient-to-br from-amber-950/40 to-slate-900 border border-amber-500/30 rounded-xl p-4 shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-mono font-bold tracking-wider text-amber-400 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span> ALERTA TEMPRANA PREDICCIÓN
+          </span>
+          <span class="text-xs bg-amber-500/20 text-amber-300 font-mono px-2 py-0.5 rounded border border-amber-500/40" id="risk-level">
+            RIESGO ALTO
+          </span>
+        </div>
+        <p class="text-xs text-slate-300 mb-3" id="risk-desc">
+          Lluvias torrenciales detectadas en la alta cordillera (GPM/IMERG). Tiempo estimado de llegada del caudal máximo al valle: <strong>14 a 18 horas</strong>.
+        </p>
+        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+          <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-slate-400 block text-[10px]">CULTIVOS EN RIESGO</span>
+            <span class="text-amber-400 font-bold text-base" id="stat-hectares">385 ha</span>
+          </div>
+          <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+            <span class="text-slate-400 block text-[10px]">POBLACIÓN EXPUESTA</span>
+            <span class="text-cyan-400 font-bold text-base" id="stat-pop">1,420 hab</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Layer Controls -->
+      <div class="space-y-3">
+        <h3 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold flex items-center justify-between">
+          <span>Capas Satelitales (Streaming)</span>
+          <span class="text-[10px] text-cyan-400 lowercase">tile / wmts</span>
+        </h3>
+
+        <!-- NASA GIBS Base Layer Toggle -->
+        <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 space-y-2">
+          <label class="flex items-center justify-between text-xs cursor-pointer">
+            <span class="font-medium text-slate-200">NASA GIBS Óptico (VIIRS)</span>
+            <input type="checkbox" id="layer-gibs" checked class="accent-cyan-500 w-4 h-4 cursor-pointer">
+          </label>
+          <p class="text-[11px] text-slate-400">
+            Streaming directo desde servidores NASA GIBS (True Color diario).
+          </p>
+          <div class="flex items-center gap-2 pt-1">
+            <label class="text-[10px] font-mono text-slate-400">Fecha:</label>
+            <input type="date" id="date-picker" value="2024-02-15" class="bg-slate-900 border border-slate-700 text-xs rounded px-2 py-0.5 text-slate-200 font-mono">
+          </div>
+        </div>
+
+        <!-- Radar SAR Water Layer -->
+        <div class="bg-slate-950/70 p-3 rounded-xl border border-cyan-900/60 space-y-2">
+          <label class="flex items-center justify-between text-xs cursor-pointer">
+            <span class="font-medium text-cyan-300 flex items-center gap-1.5">
+              <span>📡</span> Radar SAR (Banda L / C)
+            </span>
+            <input type="checkbox" id="layer-sar" checked class="accent-cyan-500 w-4 h-4 cursor-pointer">
+          </label>
+          <p class="text-[11px] text-slate-400">
+            Retrodispersión radar ($\sigma^0$). Destaca agua por baja reflexión especular (zonas oscuras).
+          </p>
+          <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+            <span>Opacidad SAR:</span>
+            <input type="range" id="sar-opacity" min="0" max="100" value="85" class="accent-cyan-500 w-28">
+          </div>
+        </div>
+
+        <!-- Inundación Detectada Mask -->
+        <div class="bg-slate-950/70 p-3 rounded-xl border border-blue-900/60 space-y-2">
+          <label class="flex items-center justify-between text-xs cursor-pointer">
+            <span class="font-medium text-blue-300 flex items-center gap-1.5">
+              <span>💧</span> Máscara de Desborde Detectada
+            </span>
+            <input type="checkbox" id="layer-flood" checked class="accent-blue-500 w-4 h-4 cursor-pointer">
+          </label>
+          <p class="text-[11px] text-slate-400">
+            Diferencia temporal $\Delta\sigma^0 < -15\text{ dB}$ (Agua anómala sobre llanura de inundación).
+          </p>
+        </div>
+
+        <!-- SIGRID / CENEPRED Vulnerabilidad -->
+        <div class="bg-slate-950/70 p-3 rounded-xl border border-red-900/50 space-y-2">
+          <label class="flex items-center justify-between text-xs cursor-pointer">
+            <span class="font-medium text-rose-300 flex items-center gap-1.5">
+              <span>🛡️</span> Vulnerabilidad SIGRID / CENEPRED
+            </span>
+            <input type="checkbox" id="layer-sigrid" checked class="accent-rose-500 w-4 h-4 cursor-pointer">
+          </label>
+          <p class="text-[11px] text-slate-400">
+            Zonas de susceptibilidad muy alta ante inundación fluvial y defensas ribereñas.
+          </p>
+        </div>
+      </div>
+
+      <!-- Science & NISAR Note -->
+      <div class="bg-blue-950/30 border border-blue-800/40 rounded-xl p-3 text-xs space-y-1.5">
+        <div class="font-bold text-cyan-300 flex items-center gap-1">
+          <span>💡</span> ¿Por qué NISAR Banda L?
+        </div>
+        <p class="text-slate-300 text-[11px] leading-relaxed">
+          La <strong>Banda L (~24 cm)</strong> penetra los cultivos densos de arroz y cebolla en el valle de Camaná. Mientras la cámara óptica ve hojas verdes, el radar detecta el agua subterránea o anegada debajo del follaje por doble rebote.
+        </p>
+      </div>
+
+      <!-- Engine Comparison Pill -->
+      <div class="pt-2 text-center">
+        <a href="GUIA_GOOGLE_EARTH_ENGINE.md" target="_blank" class="text-xs text-cyan-400 hover:text-cyan-300 underline font-mono">
+          Ver Guía y Comparativa GEE vs GIBS ↗
+        </a>
+      </div>
+
+    </aside>
+
+    <!-- Map Canvas Container -->
+    <div class="flex-1 relative h-full">
+      <div id="map" class="w-full h-full bg-slate-950 z-10"></div>
+
+      <!-- On-Map Floating Legend -->
+      <div class="absolute bottom-6 right-6 z-20 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-3 shadow-2xl text-xs space-y-2 font-mono">
+        <div class="font-bold text-slate-300 text-[11px] border-b border-slate-800 pb-1">LEYENDA SAR / RIESGO</div>
+        <div class="flex items-center gap-2">
+          <span class="w-3.5 h-3.5 rounded bg-blue-500/80 border border-blue-300"></span>
+          <span class="text-slate-300">Desborde / Agua Detectada</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3.5 h-3.5 rounded bg-rose-600/70 border border-rose-400"></span>
+          <span class="text-slate-300">Zona SIGRID Riesgo Muy Alto</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3.5 h-3.5 rounded bg-amber-500/60 border border-amber-400"></span>
+          <span class="text-slate-300">Cultivos Agrícolas Expuestos</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3.5 h-3.5 rounded bg-emerald-500/40 border border-emerald-400"></span>
+          <span class="text-slate-300">Cauce Habitual del Río</span>
+        </div>
+      </div>
+
+      <!-- Quick Alert Toast Bar -->
+      <div class="absolute top-4 right-6 z-20 bg-slate-900/90 border border-cyan-800/80 rounded-lg px-4 py-2 text-xs flex items-center gap-3 backdrop-blur shadow-xl">
+        <div class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></div>
+        <span class="text-slate-200">
+          Monitoreando: <strong id="active-basin-name" class="text-cyan-400">Valle Camaná - Majes</strong>
+        </span>
+        <span class="text-slate-600">|</span>
+        <span class="font-mono text-slate-400" id="coords-display">-16.620, -72.710</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Data & Logic -->
+  <script src="js/arequipa-data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
