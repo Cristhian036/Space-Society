@@ -99,14 +99,26 @@
           <span class="text-[10px] text-cyan-400 lowercase">tile / wmts</span>
         </h3>
 
+        <!-- Basemap Selector (100% Free / No API Key) -->
+        <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 space-y-2">
+          <label class="text-xs font-medium text-slate-200 block">
+            🗺️ Mapa Base (Libre sin API Key):
+          </label>
+          <select id="basemap-selector" class="w-full bg-slate-900 border border-slate-700 text-xs rounded px-2.5 py-2 text-slate-200 font-medium focus:border-cyan-500 focus:outline-none cursor-pointer">
+            <option value="esri_satellite" selected>🛰️ Esri Satelital (Alta Resolución)</option>
+            <option value="esri_dark">🌑 Esri Modo Oscuro (Dark Canvas)</option>
+            <option value="osm">🗺️ OpenStreetMap Estándar</option>
+          </select>
+        </div>
+
         <!-- NASA GIBS Base Layer Toggle -->
         <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 space-y-2">
           <label class="flex items-center justify-between text-xs cursor-pointer">
             <span class="font-medium text-slate-200">NASA GIBS Óptico (VIIRS)</span>
-            <input type="checkbox" id="layer-gibs" checked class="accent-cyan-500 w-4 h-4 cursor-pointer">
+            <input type="checkbox" id="layer-gibs" class="accent-cyan-500 w-4 h-4 cursor-pointer">
           </label>
           <p class="text-[11px] text-slate-400">
-            Streaming directo desde servidores NASA GIBS (True Color diario).
+            Streaming en tiempo real desde servidores NASA GIBS (True Color).
           </p>
           <div class="flex items-center gap-2 pt-1">
             <label class="text-[10px] font-mono text-slate-400">Fecha:</label>

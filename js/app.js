@@ -1,12 +1,38 @@
 // Space Society - Main Map & Layer Management
 let map;
 let currentBasin = 'camana';
+let currentBasemapKey = 'esri_satellite';
+let activeBasemapLayer;
 let gibsLayer;
-let baseDarkLayer;
 let sarLayerGroup;
 let floodLayerGroup;
 let sigridLayerGroup;
 let riverLayerGroup;
+
+// 100% Free Basemaps (No API Key Required)
+const BASEMAP_TILES = {
+  esri_satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    options: {
+      attribution: 'Tiles &copy; Esri &mdash; Earthstar Geographics',
+      maxZoom: 19
+    }
+  },
+  esri_dark: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    options: {
+      attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+      maxZoom: 16
+    }
+  },
+  osm: {
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    options: {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
+    }
+  }
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   initMap();
@@ -48,17 +74,13 @@ function initMap() {
   // Zoom control top-left
   L.control.zoom({ position: 'topleft' }).addTo(map);
 
-  // Base Map: CartoDB Dark Matter for clear radar data contrast
-  baseDarkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    subdomains: 'abcd',
-    maxZoom: 19
-  }).addTo(map);
+  // Set default basemap: Esri World Imagery (High-res Satellite, No API Key)
+  switchBasemap('esri_satellite');
 
   // Streaming Layer 2: NASA GIBS VIIRS True Color
   updateGibsLayer('2024-02-15');
 
-  // Add Layer Groups
+  // Add Layer Groups to map
   sarLayerGroup.addTo(map);
   floodLayerGroup.addTo(map);
   sigridLayerGroup.addTo(map);
@@ -71,6 +93,25 @@ function initMap() {
       coordsEl.textContent = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
     }
   });
+}
+
+// Switch Basemap dynamically
+function switchBasemap(key) {
+  const config = BASEMAP_TILES[key];
+  if (!config) return;
+
+  if (activeBasemapLayer && map.hasLayer(activeBasemapLayer)) {
+    map.removeLayer(activeBasemapLayer);
+  }
+
+  activeBasemapLayer = L.tileLayer(config.url, config.options).addTo(map);
+  activeBasemapLayer.bringToBack();
+  currentBasemapKey = key;
+
+  if (gibsLayer && map.hasLayer(gibsLayer)) {
+    gibsLayer.bringToBack();
+    activeBasemapLayer.bringToBack();
+  }
 }
 
 // Update NASA GIBS Tile Layer
@@ -86,14 +127,15 @@ function updateGibsLayer(dateStr) {
     attribution: '&copy; NASA EOSDIS GIBS',
     maxNativeZoom: 9, // Native max zoom from NASA GIBS
     maxZoom: 19,       // Allow stretching at deeper zoom levels
-    opacity: 0.85
+    opacity: 0.70
   });
 
   const checkbox = document.getElementById('layer-gibs');
   if (checkbox && checkbox.checked) {
     gibsLayer.addTo(map);
-    gibsLayer.bringToBack();
-    baseDarkLayer.bringToBack();
+    if (activeBasemapLayer) {
+      activeBasemapLayer.bringToBack();
+    }
   }
 }
 
@@ -113,7 +155,7 @@ function loadBasinData(basinKey) {
   const riverPolyline = L.polyline(basin.riverPath, {
     color: '#38bdf8',
     weight: 4,
-    opacity: 0.9,
+    opacity: 0.95,
     dashArray: '6, 6'
   }).bindPopup(`<strong>Cauce Principal</strong><br>${basin.name}`);
   riverLayerGroup.addLayer(riverPolyline);
@@ -123,7 +165,7 @@ function loadBasinData(basinKey) {
     const poly = L.polygon(zone.coordinates, {
       color: '#e11d48',
       fillColor: '#f43f5e',
-      fillOpacity: 0.25,
+      fillOpacity: 0.30,
       weight: 2,
       dashArray: '4, 4'
     }).bindPopup(`
@@ -140,16 +182,16 @@ function loadBasinData(basinKey) {
   basin.floodPolygons.forEach(fp => {
     const floodPoly = L.polygon(fp.coordinates, {
       color: '#0284c7',
-      fillColor: '#06b6d4',
-      fillOpacity: 0.60,
-      weight: 2
+      fillColor: '#00f5ff',
+      fillOpacity: 0.65,
+      weight: 2.5
     }).bindPopup(`
       <div class="text-xs space-y-1">
         <span class="text-cyan-400 font-bold block">🛰️ AGUA DETECTADA POR RADAR SAR</span>
         <strong>Sector:</strong> ${fp.name}<br>
         <strong>Área Afectada:</strong> <span class="text-amber-400 font-bold">${fp.hectares} hectáreas</span><br>
         <strong>Firma Radar:</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${fp.sarBackscatter}</code><br>
-        <p class="text-[10px] text-slate-400 mt-1">Superficie lisa reflectora: Alta constante dieléctrica del agua provoca reflexión especular hacia el exterior.</p>
+        <p class="text-[10px] text-slate-300 mt-1">Superficie lisa reflectora: Alta constante dieléctrica del agua provoca reflexión especular hacia el exterior.</p>
       </div>
     `);
     floodLayerGroup.addLayer(floodPoly);
@@ -191,14 +233,21 @@ function zoomToBasin(basinKey) {
 
 // UI and Layer Checkbox Event Listeners
 function setupEventListeners() {
+  // Basemap selector
+  const basemapSelect = document.getElementById('basemap-selector');
+  if (basemapSelect) {
+    basemapSelect.addEventListener('change', (e) => {
+      switchBasemap(e.target.value);
+    });
+  }
+
   // GIBS layer toggle
   const gibsCheckbox = document.getElementById('layer-gibs');
   if (gibsCheckbox) {
     gibsCheckbox.addEventListener('change', (e) => {
       if (e.target.checked) {
         if (!map.hasLayer(gibsLayer)) gibsLayer.addTo(map);
-        gibsLayer.bringToBack();
-        baseDarkLayer.bringToBack();
+        if (activeBasemapLayer) activeBasemapLayer.bringToBack();
       } else {
         if (map.hasLayer(gibsLayer)) map.removeLayer(gibsLayer);
       }
@@ -256,7 +305,7 @@ function setupEventListeners() {
       const val = e.target.value / 100;
       if (floodLayerGroup) {
         floodLayerGroup.eachLayer(layer => {
-          if (layer.setStyle) layer.setStyle({ fillOpacity: val * 0.7 });
+          if (layer.setStyle) layer.setStyle({ fillOpacity: val * 0.75 });
         });
       }
     });
