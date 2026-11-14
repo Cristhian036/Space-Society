@@ -12,13 +12,13 @@ html, body {
 }
 
 header {
-  height: 60px;
+  height: 56px;
   flex-shrink: 0;
 }
 
 main {
-  height: calc(100vh - 60px);
-  height: calc(100dvh - 60px);
+  height: calc(100vh - 56px);
+  height: calc(100dvh - 56px);
   min-height: 0;
 }
 
@@ -41,6 +41,13 @@ main {
   height: 100% !important;
   background-color: #020617 !important;
   z-index: 10;
+}
+
+/* Eliminar bordes triangulares negros de las imágenes radar SAR de NASA ASF */
+.sar-browse-image {
+  mix-blend-mode: screen;
+  filter: contrast(1.2) saturate(1.15);
+  pointer-events: none;
 }
 
 /* Custom Scrollbar */

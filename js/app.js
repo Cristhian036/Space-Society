@@ -1,4 +1,4 @@
-// Space Society - Motor Principal de Ríos Reales, Ciclos Orbitales (12 Días) y Escenas NASA ASF
+// Space Society - Motor Principal de Ríos Completos (7,334 Puntos GPS), Ciclos Orbitales (12 Días) y Bloques SAR de NASA ASF
 let map;
 let currentBasin = 'camana';
 let currentCycleIndex = 3; // Ciclo 4 (+36d: 06-17 Feb - Pico de Crecida) por defecto
@@ -6,9 +6,10 @@ let currentTrackFilter = 'basin_auto';
 let activeBasemapLayer;
 let gibsLayer;
 let anaWmsLayer;
-let realSarImageOverlay = null;
+let realSarOverlayGroup;
 let isRealSarOverlayActive = false;
 let playInterval = null;
+let currentMatchedScenes = [];
 
 // Grupos de Capas en Leaflet
 let riverLayerGroup;
@@ -74,17 +75,33 @@ document.addEventListener('DOMContentLoaded', () => {
 function initMap() {
   const initial = BASINS[currentBasin];
 
-  swathLayerGroup = L.layerGroup();
-  floodLayerGroup = L.layerGroup();
-  riverLayerGroup = L.layerGroup();
-  criticalPointsGroup = L.layerGroup();
-
   map = L.map('map', {
     center: initial.center,
     zoom: initial.zoom,
     zoomControl: false,
-    preferCanvas: true
+    preferCanvas: false
   });
+
+  // Crear Panes con Z-Index explícitos para que el río y su remarcado SIEMPRE estén encima del bloque SAR
+  map.createPane('swathPane');
+  map.getPane('swathPane').style.zIndex = 380;
+
+  map.createPane('floodPane');
+  map.getPane('floodPane').style.zIndex = 610;
+  map.getPane('floodPane').style.pointerEvents = 'auto';
+
+  map.createPane('riversTopPane');
+  map.getPane('riversTopPane').style.zIndex = 630;
+  map.getPane('riversTopPane').style.pointerEvents = 'auto';
+
+  map.createPane('criticalPane');
+  map.getPane('criticalPane').style.zIndex = 660;
+
+  swathLayerGroup = L.layerGroup();
+  realSarOverlayGroup = L.layerGroup();
+  floodLayerGroup = L.layerGroup();
+  riverLayerGroup = L.layerGroup();
+  criticalPointsGroup = L.layerGroup();
 
   L.control.zoom({ position: 'topleft' }).addTo(map);
 
@@ -96,11 +113,13 @@ function initMap() {
     layers: '0,1,2,3,4,5',
     format: 'image/png',
     transparent: true,
+    pane: 'riversTopPane',
     attribution: '&copy; ANA Perú - GeoSNIRH'
   });
 
-  // Agregar grupos en orden de apilamiento
+  // Agregar grupos al mapa
   swathLayerGroup.addTo(map);
+  realSarOverlayGroup.addTo(map);
   floodLayerGroup.addTo(map);
   riverLayerGroup.addTo(map);
   criticalPointsGroup.addTo(map);
@@ -110,6 +129,11 @@ function initMap() {
     if (coordsEl) {
       coordsEl.textContent = `${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
     }
+  });
+
+  // Re-escalar el grosor del remarcado del río según el nivel de zoom para que nunca se vea deforme ni cortado
+  map.on('zoomend', () => {
+    updateAllVisuals(false);
   });
 }
 
@@ -125,7 +149,6 @@ function switchBasemap(key) {
   activeBasemapLayer.bringToBack();
 }
 
-// Actualizar Capa NASA GIBS sincronizada con la fecha del Pase Orbital
 function updateGibsLayer(dateStr) {
   if (gibsLayer && map.hasLayer(gibsLayer)) {
     map.removeLayer(gibsLayer);
@@ -147,7 +170,6 @@ function updateGibsLayer(dateStr) {
   }
 }
 
-// Renderizar los 7 botones del Ciclo Orbital de 12 Días en la barra inferior
 function renderTimelineControls() {
   const container = document.getElementById('orbital-timeline-steps');
   if (!container) return;
@@ -163,7 +185,6 @@ function renderTimelineControls() {
     }`;
     btn.onclick = () => selectOrbitalCycle(idx);
 
-    // Indicador de color según severidad
     let dotColor = 'bg-emerald-400';
     if (cyc.floodIntensity >= 0.8) dotColor = 'bg-rose-500';
     else if (cyc.floodIntensity >= 0.5) dotColor = 'bg-amber-400';
@@ -181,7 +202,6 @@ function renderTimelineControls() {
   });
 }
 
-// Renderizar el gráfico de barras de Retrodispersión Radar (dB) cada 12 días
 function renderBackscatterChart() {
   const chart = document.getElementById('backscatter-chart');
   if (!chart) return;
@@ -189,7 +209,6 @@ function renderBackscatterChart() {
   chart.innerHTML = '';
   ORBITAL_CYCLES.forEach((cyc, idx) => {
     const isActive = idx === currentCycleIndex;
-    // Escalar de -8 dB a -20 dB en altura porcentual (mayor caída de dB = mayor barra de anomalía de agua)
     const pct = Math.min(100, Math.max(20, Math.round(((Math.abs(cyc.sarBackscatterDb) - 7) / 13) * 100)));
     const isFlooded = cyc.sarBackscatterDb <= -15.0;
 
@@ -235,13 +254,24 @@ function togglePlayCycles() {
   }
 }
 
-// Función Maestra: Dibuja Ríos Reales, Mancha de Agua SAR Orgánica y Tramos Orbitales
+// Factor de escala según el zoom actual del mapa para que el remarcado del río sea nítido en cualquier escala
+function getZoomScaleFactor() {
+  if (!map) return 1.0;
+  const z = map.getZoom();
+  if (z <= 8) return 0.35;
+  if (z === 9) return 0.50;
+  if (z === 10) return 0.70;
+  if (z === 11) return 0.90;
+  if (z === 12) return 1.15;
+  return 1.45;
+}
+
+// Función Maestra: Dibuja TODOS los Ríos Completos (Cordillera a Océano), su Remarcado SAR Completo y los Bloques SAR
 function updateAllVisuals(flyToBasin = false) {
   const basin = BASINS[currentBasin];
   const cycle = ORBITAL_CYCLES[currentCycleIndex];
   if (!basin || !cycle || !map) return;
 
-  // Limpiar capas vectoriales previas
   riverLayerGroup.clearLayers();
   floodLayerGroup.clearLayers();
   swathLayerGroup.clearLayers();
@@ -249,132 +279,126 @@ function updateAllVisuals(flyToBasin = false) {
 
   const opacitySlider = document.getElementById('sar-opacity');
   const userOpacity = opacitySlider ? (opacitySlider.value / 100) : 0.85;
+  const zScale = getZoomScaleFactor();
 
-  // 1. DIBUJAR TODOS LOS RÍOS REALES (4,064 puntos GPS)
-  // Dibujamos los ríos de las demás cuencas en tono tenue y la cuenca activa resaltada
+  // 1. DIBUJAR EL REMARCADO DE AGUA SAR Y EL CAUCE COMPLETO EN TODAS LAS CUENCAS
+  // Así, cualquier bloque SAR de 250 km mostrará TODOS los ríos que pasan por su interior de principio a fin sin cortarse
   Object.keys(BASINS).forEach(bKey => {
     const bData = BASINS[bKey];
     const isCurrent = bKey === currentBasin;
+    const basinBoost = isCurrent ? 1.0 : 0.80;
 
-    bData.riverSegments.forEach(seg => {
-      // Halo sutil debajo del cauce
-      if (isCurrent) {
-        L.polyline(seg, {
+    // A) Remarcado de Desborde / Agua SAR a lo largo de TODO el curso del río (de cordillera al mar)
+    if (cycle.waterExpansionFactor > 1.02) {
+      const outerW = Math.max(4, Math.round(cycle.waterExpansionFactor * 6.5 * zScale * basinBoost));
+      const midW = Math.max(2.5, Math.round(cycle.waterExpansionFactor * 4.0 * zScale * basinBoost));
+      const coreW = Math.max(1.5, Math.round(cycle.waterExpansionFactor * 2.2 * zScale * basinBoost));
+
+      bData.valleyFloodSegments.forEach(vSeg => {
+        // Halo externo de humedad / inundación lateral SAR
+        L.polyline(vSeg, {
+          pane: 'floodPane',
           color: '#0284c7',
-          weight: 5,
-          opacity: 0.35,
-          lineCap: 'round',
+          weight: outerW,
+          opacity: userOpacity * 0.42 * basinBoost,
+          lineCap: 'butt',
           lineJoin: 'round'
-        }).addTo(riverLayerGroup);
-      }
+        }).addTo(floodLayerGroup);
 
-      // Línea central real del río
+        // Mancha media de desborde fluvial activa
+        L.polyline(vSeg, {
+          pane: 'floodPane',
+          color: '#00f5ff',
+          weight: midW,
+          opacity: userOpacity * 0.65 * basinBoost,
+          lineCap: 'butt',
+          lineJoin: 'round'
+        }).bindPopup(`
+          <div class="text-xs space-y-1">
+            <span class="text-cyan-400 font-bold block">🌊 REMARCADO DE AGUA SAR (${bData.name})</span>
+            <strong>Fase Orbital:</strong> ${cycle.label} (${cycle.phase})<br>
+            <strong>Firma Radar (&sigma;<sup>0</sup>):</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${cycle.sarBackscatterDb} dB</code><br>
+            <strong>Ancho Espejo de Agua:</strong> <span class="text-amber-400 font-bold">${cycle.metrics[bKey].width}</span><br>
+            <strong>Superficie Inundada:</strong> <span class="text-rose-400 font-bold">${cycle.metrics[bKey].ha}</span>
+          </div>
+        `).addTo(floodLayerGroup);
+
+        // Núcleo de reflexión especular intensa en picos de crecida
+        if (cycle.floodIntensity >= 0.45) {
+          L.polyline(vSeg, {
+            pane: 'floodPane',
+            color: '#e0f2fe',
+            weight: coreW,
+            opacity: userOpacity * 0.85 * basinBoost,
+            lineCap: 'butt',
+            lineJoin: 'round'
+          }).addTo(floodLayerGroup);
+        }
+      });
+    }
+
+    // B) Línea central continua de alta precisión del río (ENCIMA del bloque SAR)
+    bData.riverSegments.forEach(seg => {
       const line = L.polyline(seg, {
-        color: isCurrent ? '#38bdf8' : '#0369a1',
-        weight: isCurrent ? 2.5 : 1.5,
-        opacity: isCurrent ? 0.95 : 0.65,
-        lineCap: 'round',
+        pane: 'riversTopPane',
+        color: isCurrent ? '#38bdf8' : '#22d3ee',
+        weight: isCurrent ? Math.max(2, 2.5 * zScale) : Math.max(1.5, 2.0 * zScale),
+        opacity: isCurrent ? 1.0 : 0.85,
+        lineCap: 'butt',
         lineJoin: 'round'
       }).bindPopup(`
         <div class="text-xs space-y-1 font-sans">
-          <span class="text-sky-400 font-bold block">💧 TRAZO HIDROGRÁFICO REAL (GPS)</span>
+          <span class="text-sky-400 font-bold block">💧 RED HIDROGRÁFICA COMPLETA (GPS REAL)</span>
           <strong>Cuenca:</strong> ${bData.name}<br>
           <strong>Código Oficial:</strong> ${bData.anaCode}<br>
-          <strong>Geometría:</strong> Cauce natural continuo de alta precisión (${bData.riverSegments.reduce((a, s) => a + s.length, 0)} vértices GPS)
+          <strong>Caudal en ${cycle.shortDate}:</strong> <span class="text-amber-400 font-bold">${cycle.metrics[bKey].flow}</span>
         </div>
       `);
       line.addTo(riverLayerGroup);
     });
-  });
 
-  // 2. DIBUJAR LA MANCHA DE DESBORDE SAR ORGÁNICA SIGUIENDO LAS CURVAS REALES DEL VALLE
-  // En lugar de rectángulos artificiales, el agua detectada por SAR se expande sobre los meandros reales del valle
-  if (cycle.waterExpansionFactor > 1.05) {
-    const outerWidth = Math.round(cycle.waterExpansionFactor * 9);
-    const midWidth = Math.round(cycle.waterExpansionFactor * 5.5);
-    const coreWidth = Math.round(cycle.waterExpansionFactor * 3);
+    // C) Puntos críticos de monitoreo a lo largo del río (alta, media y baja cuenca)
+    bData.criticalPoints.forEach(cp => {
+      if (!isCurrent && map.getZoom() > 10) return; // En zoom cercano mostrar los de la cuenca activa
+      const radius = Math.max(4, Math.round((5 + cycle.floodIntensity * 6) * Math.min(1.1, zScale)));
+      const isCritical = cycle.floodIntensity >= 0.5;
+      const color = isCritical ? '#f43f5e' : (cycle.floodIntensity >= 0.2 ? '#f59e0b' : '#10b981');
 
-    basin.valleyFloodSegments.forEach(vSeg => {
-      // Suelo agrícola saturado / Doble rebote Banda L (exterior)
-      L.polyline(vSeg, {
-        color: '#0284c7',
-        weight: outerWidth,
-        opacity: userOpacity * 0.38,
-        lineCap: 'round',
-        lineJoin: 'round'
-      }).addTo(floodLayerGroup);
+      if (cycle.floodIntensity >= 0.25 && isCurrent) {
+        L.circleMarker(cp.coords, {
+          pane: 'criticalPane',
+          radius: radius + 5,
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.22,
+          weight: 1,
+          dashArray: '3, 3'
+        }).addTo(criticalPointsGroup);
+      }
 
-      // Lámina de desborde fluvial activa (medio)
-      L.polyline(vSeg, {
-        color: '#06b6d4',
-        weight: midWidth,
-        opacity: userOpacity * 0.55,
-        lineCap: 'round',
-        lineJoin: 'round'
+      L.circleMarker(cp.coords, {
+        pane: 'criticalPane',
+        radius: isCurrent ? 5.5 : 4,
+        color: '#ffffff',
+        fillColor: color,
+        fillOpacity: 0.95,
+        weight: 1.5
       }).bindPopup(`
         <div class="text-xs space-y-1">
-          <span class="text-cyan-400 font-bold block">🌊 DESBORDE DETECTADO POR RADAR SAR</span>
-          <strong>Fase Orbital:</strong> ${cycle.label} (${cycle.phase})<br>
-          <strong>Firma Radar (&sigma;<sup>0</sup>):</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${cycle.sarBackscatterDb} dB</code><br>
-          <strong>Ancho de Espejo de Agua:</strong> <span class="text-amber-400 font-bold">${cycle.metrics[currentBasin].width}</span><br>
-          <strong>Área Agrícola Afectada:</strong> <span class="text-rose-400 font-bold">${cycle.metrics[currentBasin].ha}</span><br>
-          <p class="text-[10px] text-slate-300 mt-1">Anomalía detectada a lo largo de la llanura aluvial real del ${basin.name}.</p>
+          <span class="font-bold text-rose-400 block">📍 ${cp.name}</span>
+          <strong>Cuenca:</strong> ${bData.name}<br>
+          <strong>Sector:</strong> ${cp.sector}<br>
+          <strong>Vulnerabilidad:</strong> ${cp.vulnerability}<br>
+          <strong>Estado (${cycle.shortDate}):</strong> <span class="font-bold text-cyan-300">${cycle.phase}</span>
         </div>
-      `).addTo(floodLayerGroup);
-
-      // Espejo de agua libre (reflexión especular pura < -18 dB)
-      if (cycle.floodIntensity >= 0.5) {
-        L.polyline(vSeg, {
-          color: '#67e8f9',
-          weight: coreWidth,
-          opacity: userOpacity * 0.8,
-          lineCap: 'round',
-          lineJoin: 'round'
-        }).addTo(floodLayerGroup);
-      }
+      `).addTo(criticalPointsGroup);
     });
-  }
-
-  // 3. DIBUJAR PUNTOS CRÍTICOS DE MONITOREO Y ANEGAMIENTO EN EL RÍO REAL
-  basin.criticalPoints.forEach(cp => {
-    const radius = 6 + Math.round(cycle.floodIntensity * 10);
-    const isCritical = cycle.floodIntensity >= 0.5;
-    const color = isCritical ? '#f43f5e' : (cycle.floodIntensity >= 0.2 ? '#f59e0b' : '#10b981');
-
-    // Halo pulsante en crecida
-    if (cycle.floodIntensity >= 0.25) {
-      L.circleMarker(cp.coords, {
-        radius: radius + 7,
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.2,
-        weight: 1,
-        dashArray: '3, 3'
-      }).addTo(criticalPointsGroup);
-    }
-
-    const marker = L.circleMarker(cp.coords, {
-      radius: 6,
-      color: '#ffffff',
-      fillColor: color,
-      fillOpacity: 0.95,
-      weight: 2
-    }).bindPopup(`
-      <div class="text-xs space-y-1">
-        <span class="font-bold text-rose-400 block">📍 PUNTO CRÍTICO: ${cp.name}</span>
-        <strong>Sector:</strong> ${cp.sector}<br>
-        <strong>Vulnerabilidad CENEPRED:</strong> ${cp.vulnerability}<br>
-        <strong>Estado en ${cycle.shortDate}:</strong> <span class="font-bold text-cyan-300">${cycle.phase}</span><br>
-        <strong>Retrodispersión Local:</strong> <code class="font-mono text-amber-300">${cycle.sarBackscatterDb} dB</code>
-      </div>
-    `);
-    marker.addTo(criticalPointsGroup);
   });
 
-  // 4. DIBUJAR TRAMOS ORBITALES REALES (SWATHS DE 250 KM DE NASA ASF)
+  // 2. DIBUJAR TRAMOS ORBITALES REALES (SWATHS DE 250 KM DE NASA ASF)
   renderOrbitalSwaths(basin, cycle);
 
-  // 5. ACTUALIZAR TARJETAS DE TELEMETRÍA Y SIDEBAR
+  // 3. ACTUALIZAR TARJETAS DE TELEMETRÍA Y SIDEBAR
   const bMetrics = cycle.metrics[currentBasin];
   document.getElementById('pass-badge').textContent = `🛰️ ${cycle.label.toUpperCase()}`;
   const riskEl = document.getElementById('risk-level');
@@ -391,7 +415,6 @@ function updateAllVisuals(flyToBasin = false) {
   document.getElementById('active-basin-name').textContent = basin.name;
   document.getElementById('timeline-phase-label').textContent = `${cycle.shortDate} — ${cycle.phase}`;
 
-  // Actualizar NASA GIBS con la fecha real del Track primario
   const activeDate = getTrackDateForCycle(basin.primaryTrack, cycle);
   updateGibsLayer(activeDate);
 
@@ -408,7 +431,7 @@ function getTrackDateForCycle(trackNum, cycle) {
   return cycle.dateTrack47;
 }
 
-// Renderizar los polígonos reales de los Tramos Orbitales (Swaths) de NASA ASF
+// Renderizar todos los bloques (frames) del Tramo Orbital activo
 function renderOrbitalSwaths(basin, cycle) {
   let targetTracks = [];
   if (currentTrackFilter === 'basin_auto') {
@@ -426,28 +449,28 @@ function renderOrbitalSwaths(basin, cycle) {
     120: '#fbbf24'  // Amber (Ascendente - Ocoña/Caravelí)
   };
 
-  let primaryGranule = null;
+  currentMatchedScenes = [];
 
   targetTracks.forEach(trNum => {
     const targetDate = getTrackDateForCycle(trNum, cycle);
-    // Buscar escenas de ese track en esa fecha (o la más cercana)
     let matching = ASF_REAL_SCENES.filter(s => s.track === trNum && s.date === targetDate);
     if (matching.length === 0) {
       matching = ASF_REAL_SCENES.filter(s => s.track === trNum).slice(0, 2);
     }
 
     matching.forEach(scene => {
-      if (!primaryGranule) primaryGranule = scene;
+      currentMatchedScenes.push(scene);
       const color = trackColors[trNum] || '#818cf8';
       const dirArrow = scene.flightDirection === 'ASCENDING' ? '↗ ASCENDENTE (Sur → Norte)' : '↙ DESCENDENTE (Norte → Sur)';
 
       const poly = L.polygon(scene.footprint, {
+        pane: 'swathPane',
         color: color,
         weight: 2,
-        opacity: 0.85,
+        opacity: 0.9,
         dashArray: '8, 6',
         fillColor: color,
-        fillOpacity: 0.06
+        fillOpacity: 0.05
       }).bindPopup(`
         <div class="text-xs space-y-1.5 font-sans">
           <span class="text-indigo-400 font-bold block">🛰️ TRAMO ORBITAL REAL (NASA ASF SAR)</span>
@@ -457,8 +480,8 @@ function renderOrbitalSwaths(basin, cycle) {
           <strong>Modo / Polarización:</strong> <span class="font-mono">${scene.beamMode} (${scene.polarization})</span><br>
           <strong>Granule ID:</strong> <code class="text-[10px] bg-slate-800 px-1 py-0.5 rounded block truncate">${scene.granuleName}</code>
           <div class="pt-1 flex gap-2">
-            <button onclick="projectSpecificScene('${scene.granuleName}')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded text-[11px] font-medium w-full">
-              📡 Proyectar Imagen Radar de este Tramo
+            <button onclick="toggleRealSarImageOverlay(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded text-[11px] font-medium w-full">
+              📡 Proyectar Todos los Bloques de este Tramo
             </button>
           </div>
         </div>
@@ -467,72 +490,64 @@ function renderOrbitalSwaths(basin, cycle) {
     });
   });
 
-  // Actualizar panel lateral con los datos del Granule activo
-  if (primaryGranule) {
+  if (currentMatchedScenes.length > 0) {
+    const primaryGranule = currentMatchedScenes[0];
     const dirShort = primaryGranule.flightDirection === 'ASCENDING' ? '↗ ASCENDENTE' : '↙ DESCENDENTE';
-    document.getElementById('asf-track-label').textContent = `Track ${primaryGranule.track} (${dirShort})`;
+    document.getElementById('asf-track-label').textContent = `Track ${primaryGranule.track} (${dirShort} · ${currentMatchedScenes.length} bloques)`;
     document.getElementById('asf-date-label').textContent = primaryGranule.startTime.substring(0, 16).replace('T', ' ') + 'Z';
     const granEl = document.getElementById('asf-granule-name');
-    granEl.textContent = primaryGranule.granuleName;
-    granEl.title = primaryGranule.granuleName;
+    granEl.textContent = currentMatchedScenes.map(s => s.granuleName).join(' + ');
+    granEl.title = granEl.textContent;
     document.getElementById('hud-track-info').textContent = `Track ${primaryGranule.track} (${primaryGranule.date})`;
 
-    // Si la superposición de imagen SAR real está activa, actualizarla al nuevo ciclo de 12 días
     if (isRealSarOverlayActive) {
-      showSceneBrowseOverlay(primaryGranule);
+      showAllMatchedSceneOverlays();
     }
   }
 }
 
-// Superponer la imagen de retrodispersión radar REAL desde NASA ASF Datapool sobre el mapa
-function showSceneBrowseOverlay(scene) {
-  if (!scene || !scene.browseUrl || !scene.footprint || scene.footprint.length === 0) return;
+// Proyectar TODOS los bloques del Tramo Orbital (superior e inferior) sin bordes negros y DEBAJO del remarcado de los ríos
+function showAllMatchedSceneOverlays() {
+  realSarOverlayGroup.clearLayers();
 
-  if (realSarImageOverlay && map.hasLayer(realSarImageOverlay)) {
-    map.removeLayer(realSarImageOverlay);
-  }
+  currentMatchedScenes.forEach(scene => {
+    if (!scene || !scene.browseUrl || !scene.footprint || scene.footprint.length === 0) return;
+    const lats = scene.footprint.map(p => p[0]);
+    const lons = scene.footprint.map(p => p[1]);
+    const bounds = [
+      [Math.min(...lats), Math.min(...lons)],
+      [Math.max(...lats), Math.max(...lons)]
+    ];
 
-  const lats = scene.footprint.map(p => p[0]);
-  const lons = scene.footprint.map(p => p[1]);
-  const bounds = [
-    [Math.min(...lats), Math.min(...lons)],
-    [Math.max(...lats), Math.max(...lons)]
-  ];
-
-  realSarImageOverlay = L.imageOverlay(scene.browseUrl, bounds, {
-    opacity: 0.78,
-    interactive: false
-  }).addTo(map);
+    L.imageOverlay(scene.browseUrl, bounds, {
+      pane: 'swathPane',
+      opacity: 0.85,
+      className: 'sar-browse-image',
+      interactive: false
+    }).addTo(realSarOverlayGroup);
+  });
 
   isRealSarOverlayActive = true;
   const btnText = document.getElementById('btn-real-sar-text');
   if (btnText) btnText.textContent = 'Ocultar Imagen Radar Real (ASF)';
 }
 
-function toggleRealSarImageOverlay() {
-  if (isRealSarOverlayActive) {
-    if (realSarImageOverlay && map.hasLayer(realSarImageOverlay)) {
-      map.removeLayer(realSarImageOverlay);
-    }
+function toggleRealSarImageOverlay(forceOn = false) {
+  if (isRealSarOverlayActive && !forceOn) {
+    realSarOverlayGroup.clearLayers();
     isRealSarOverlayActive = false;
     const btnText = document.getElementById('btn-real-sar-text');
     if (btnText) btnText.textContent = 'Proyectar Imagen Radar Real (ASF)';
   } else {
-    const granName = document.getElementById('asf-granule-name').textContent.trim();
-    const scene = ASF_REAL_SCENES.find(s => s.granuleName === granName) || ASF_REAL_SCENES[0];
-    showSceneBrowseOverlay(scene);
-    // Hacer zoom intermedio para apreciar el tramo de 250 km junto con el río
-    if (map.getZoom() > 10) {
-      map.flyTo(BASINS[currentBasin].center, 9, { duration: 1.0 });
+    showAllMatchedSceneOverlays();
+    if (map.getZoom() > 9) {
+      map.flyTo(BASINS[currentBasin].center, 8, { duration: 1.0 });
     }
   }
 }
 
 function projectSpecificScene(granuleName) {
-  const scene = ASF_REAL_SCENES.find(s => s.granuleName === granuleName);
-  if (scene) {
-    showSceneBrowseOverlay(scene);
-  }
+  toggleRealSarImageOverlay(true);
 }
 
 function zoomToBasin(basinKey) {
@@ -548,7 +563,6 @@ function zoomToBasin(basinKey) {
   updateAllVisuals(true);
 }
 
-// Vista panorámica de todos los Tramos Orbitales de 250 km sobre la región Arequipa
 function zoomToAllTracks() {
   document.querySelectorAll('.basin-btn').forEach(btn => btn.classList.remove('active'));
   const btnAll = document.getElementById('btn-all-tracks');
@@ -563,7 +577,6 @@ function zoomToAllTracks() {
 }
 
 function setupEventListeners() {
-  // Selector de Mapa Base
   const basemapSelect = document.getElementById('basemap-selector');
   const cartoKeyContainer = document.getElementById('carto-key-container');
   const cartoApiKeyInput = document.getElementById('carto-api-key');
@@ -594,7 +607,6 @@ function setupEventListeners() {
     });
   }
 
-  // Selector de Tramo Orbital (Track)
   const trackSelector = document.getElementById('track-selector');
   if (trackSelector) {
     trackSelector.addEventListener('change', (e) => {
@@ -603,7 +615,6 @@ function setupEventListeners() {
     });
   }
 
-  // Toggles de Capas
   const swathsCheckbox = document.getElementById('layer-swaths');
   if (swathsCheckbox) {
     swathsCheckbox.addEventListener('change', (e) => {
