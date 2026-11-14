@@ -98,22 +98,33 @@
         </div>
 
         <p class="text-[10px] text-slate-300 leading-snug">
-          Extrae los ríos <strong>100% por cálculo matemático desde cero</strong> (sin usar mapas de ríos preexistentes): decodifica la profundidad topográfica <code class="text-emerald-300 font-mono">Z(x,y)</code>, ejecuta enrutamiento gravitacional <strong>D8</strong>, índice <strong>HAND/TWI</strong> y umbralización bimodal de <strong>Otsu</strong> (con Microservicio Python NumPy en <code class="text-cyan-300">:8050</code>).
+          Extrae los ríos <strong>desde el DEM, sin mapas de ríos</strong>: <strong>Priority-Flood+ε</strong> (Barnes 2014) → <strong>D8</strong> → acumulación en km² → orden de <strong>Strahler</strong>, dibujados como líneas finas (microservicio Python en <code class="text-cyan-300">:8050</code>).
         </p>
 
         <div class="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
           <div>
-            <span class="text-slate-400 block mb-0.5">Potencia CPU / Malla:</span>
+            <span class="text-slate-400 block mb-0.5">Resolución DEM:</span>
             <select id="math-res-select" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-emerald-300 focus:outline-none">
-              <option value="standard">⚡ 360×360 (130k nodos)</option>
-              <option value="high" selected>🚀 540×540 (291k nodos)</option>
-              <option value="ultra">🔥 768×768 (590k CPU a Mil)</option>
+              <option value="standard">⚡ Estándar (≤16 tiles, ~1M celdas)</option>
+              <option value="high" selected>🚀 Alta (≤36 tiles, ~2.4M)</option>
+              <option value="ultra">🔥 Ultra (≤64 tiles, ~4.2M CPU a mil)</option>
             </select>
           </div>
           <div>
-            <span class="text-slate-400 block mb-0.5">Sensibilidad Thalweg:</span>
-            <input type="range" id="math-sens-slider" min="0.6" max="1.6" step="0.1" value="1.1" class="w-full accent-emerald-400 mt-1 cursor-pointer">
+            <span class="text-slate-400 block mb-0.5">Densidad de drenaje:</span>
+            <input type="range" id="math-sens-slider" min="0.4" max="3" step="0.2" value="1" class="w-full accent-emerald-400 mt-1 cursor-pointer" title="Mayor = umbral de área menor = más tributarios">
           </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-1">
+          <label class="flex items-center gap-2 text-[10px] text-cyan-200 cursor-pointer bg-slate-950/70 px-2 py-1 rounded border border-slate-800" title="Usa la imagen satelital alineada al DEM para detectar agua y vegetación riparia y 'quemarla' en el DEM (corrige meandros en planicies)">
+            <input type="checkbox" id="math-burn-optical" checked class="accent-cyan-400 w-3.5 h-3.5">
+            <span>Stream burning con agua observada (meandros fieles)</span>
+          </label>
+          <label class="flex items-center gap-2 text-[10px] text-slate-300 cursor-pointer bg-slate-950/70 px-2 py-1 rounded border border-slate-800">
+            <input type="checkbox" id="math-show-dry" checked class="accent-slate-400 w-3.5 h-3.5">
+            <span>Mostrar cauces secos principales (gris tenue)</span>
+          </label>
         </div>
 
         <label class="flex items-center gap-2 text-[10px] text-amber-200 cursor-pointer bg-slate-950/70 px-2 py-1 rounded border border-slate-800">
@@ -136,7 +147,7 @@
           <label class="text-[11px] font-mono font-bold tracking-wider text-indigo-300 flex items-center gap-1.5 cursor-pointer">
             <span>🛰️</span> COLAB NISAR L2 GCOV (&Delta;dB HHHH)
           </label>
-          <input type="checkbox" id="toggle-nisar-colab" checked onchange="renderNisarColabLayer()" class="accent-indigo-400 w-4 h-4 cursor-pointer">
+          <input type="checkbox" id="toggle-nisar-colab" onchange="renderNisarColabLayer()" class="accent-indigo-400 w-4 h-4 cursor-pointer">
         </div>
 
         <p class="text-[10px] text-slate-300 leading-snug">
