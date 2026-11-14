@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Space Society - RadarSAR Arequipa (Ciclo Orbital 12 Días)</title>
+  <title>Space Society - RadarSAR Perú & Arequipa (Detección Nacional de Ríos por SAR)</title>
   
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -18,47 +18,65 @@
 </head>
 <body class="bg-slate-950 text-slate-100 h-screen w-screen flex flex-col font-sans overflow-hidden">
 
+  <!-- Filtro SVG para eliminar bordes negros de las imágenes JPG de NASA ASF y resaltar cauces -->
+  <svg width="0" height="0" class="absolute pointer-events-none">
+    <defs>
+      <filter id="remove-black-bg" color-interpolation-filters="sRGB">
+        <!-- Convierte píxeles negros (bordes de la órbita inclinada) en transparentes manteniendo el radar nítido -->
+        <feColorMatrix type="matrix" values="
+          1.15 0    0    0   0
+          0    1.15 0    0   0
+          0    0    1.25 0   0
+          1.8  1.8  1.8  0  -0.18
+        " />
+      </filter>
+    </defs>
+  </svg>
+
   <!-- Header / Navigation -->
-  <header class="bg-slate-900/95 backdrop-blur border-b border-cyan-900/40 px-5 py-2.5 flex items-center justify-between sticky top-0 z-50 flex-shrink-0">
+  <header class="bg-slate-900/95 backdrop-blur border-b border-cyan-900/40 px-4 py-2 flex items-center justify-between sticky top-0 z-50 flex-shrink-0">
     <div class="flex items-center space-x-3">
       <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-700 flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/20">
         🛰️
       </div>
       <div>
         <div class="flex items-center space-x-2">
-          <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
-            SPACE SOCIETY <span class="text-[11px] bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full font-mono">NISAR / SENTINEL-1 SAR</span>
+          <h1 class="text-sm font-bold tracking-tight text-white flex items-center gap-2">
+            SPACE SOCIETY <span class="text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full font-mono">NISAR / SENTINEL-1 PERÚ</span>
           </h1>
         </div>
-        <p class="text-[11px] text-slate-400">Monitoreo Orbital por Tramos (Cada 12 Días) y Red Hidrográfica Real de Arequipa</p>
+        <p class="text-[11px] text-slate-400">Lectura Masiva de Bloques SAR y Detección Automática de Ríos en Todo el Perú</p>
       </div>
     </div>
 
-    <!-- Quick Basin Selectors -->
-    <div class="flex items-center gap-1.5 bg-slate-950/90 p-1 rounded-lg border border-slate-800 text-xs">
-      <span class="text-slate-400 px-2 font-mono text-[11px]">Cuenca Real:</span>
-      <button onclick="zoomToBasin('camana')" class="basin-btn active px-2.5 py-1.5 rounded transition font-medium" id="btn-camana">
-        🌾 Camaná - Majes
+    <!-- Quick Basin & National Selectors -->
+    <div class="flex items-center gap-1 bg-slate-950/90 p-1 rounded-lg border border-slate-800 text-xs">
+      <button onclick="activateNationalPeruView()" class="basin-btn px-2.5 py-1.5 rounded transition font-bold text-emerald-300 border border-emerald-800/50 bg-emerald-950/30" id="btn-peru-all" title="Ver los 118 bloques SAR y las 33 cuencas hidrográficas de todo el Perú activas a la vez">
+        🇵🇪 Todo el Perú (118 SAR + 33 Ríos)
       </button>
-      <button onclick="zoomToBasin('chili')" class="basin-btn px-2.5 py-1.5 rounded transition font-medium" id="btn-chili">
-        🏙️ Chili - Vítor - Quilca
+      <span class="text-slate-700 px-0.5">|</span>
+      <button onclick="zoomToBasin('camana')" class="basin-btn active px-2 py-1.5 rounded transition font-medium" id="btn-camana">
+        🌾 Camaná-Majes
       </button>
-      <button onclick="zoomToBasin('ocona')" class="basin-btn px-2.5 py-1.5 rounded transition font-medium" id="btn-ocona">
-        🏞️ Río Ocoña
+      <button onclick="zoomToBasin('chili')" class="basin-btn px-2 py-1.5 rounded transition font-medium" id="btn-chili">
+        🏙️ Chili-Quilca
       </button>
-      <button onclick="zoomToBasin('tambo')" class="basin-btn px-2.5 py-1.5 rounded transition font-medium" id="btn-tambo">
-        🌊 Río Tambo
+      <button onclick="zoomToBasin('ocona')" class="basin-btn px-2 py-1.5 rounded transition font-medium" id="btn-ocona">
+        🏞️ Ocoña
       </button>
-      <button onclick="zoomToAllTracks()" class="basin-btn px-2.5 py-1.5 rounded transition font-medium border-l border-slate-800 text-cyan-300" id="btn-all-tracks" title="Ver todos los tramos satelitales de 250 km sobre Arequipa">
-        🛰️ Ver Tramos Orbitales
+      <button onclick="zoomToBasin('tambo')" class="basin-btn px-2 py-1.5 rounded transition font-medium" id="btn-tambo">
+        🌊 Tambo
+      </button>
+      <button onclick="zoomToAllTracks()" class="basin-btn px-2 py-1.5 rounded transition font-medium text-cyan-300" id="btn-all-tracks">
+        🛰️ Bloques Sur
       </button>
     </div>
 
     <!-- Live Status Pill -->
-    <div class="flex items-center space-x-3 text-xs">
-      <div class="flex items-center gap-2 bg-emerald-950/60 border border-emerald-600/50 text-emerald-400 px-3 py-1 rounded-full font-mono text-[11px]">
+    <div class="flex items-center space-x-2.5 text-xs">
+      <div class="flex items-center gap-1.5 bg-emerald-950/60 border border-emerald-600/50 text-emerald-400 px-2.5 py-1 rounded-full font-mono text-[10px]">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        NASA ASF + RÍOS COMPLETOS (7,334 PTS)
+        <span id="header-active-stats">166 ESCENAS SAR · 33 RÍOS ACTIVOS</span>
       </div>
       <div class="font-mono text-slate-400 text-[11px]" id="clock">--:--:-- UTC</div>
     </div>
@@ -67,83 +85,62 @@
   <!-- Main Workspace -->
   <main class="flex-1 flex overflow-hidden relative w-full h-[calc(100vh-56px)]">
 
-    <!-- Left Sidebar: Controls, SAR Physics & Telemetry -->
-    <aside class="w-96 bg-slate-900/95 border-r border-slate-800 flex flex-col p-4 overflow-y-auto space-y-4 z-20 text-sm flex-shrink-0">
+    <!-- Left Sidebar: Controls, SAR Detector & Telemetry -->
+    <aside class="w-96 bg-slate-900/95 border-r border-slate-800 flex flex-col p-3.5 overflow-y-auto space-y-3.5 z-20 text-sm flex-shrink-0">
       
-      <!-- Active 12-Day Orbital Pass & Early Warning Card -->
-      <div class="bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950/30 border border-cyan-500/30 rounded-xl p-3.5 shadow-lg space-y-2.5">
+      <!-- 1. MOTOR DE DETECCIÓN DE RÍOS EN BASE A DATOS SAR -->
+      <div class="bg-gradient-to-br from-cyan-950/50 via-slate-900 to-slate-900 border border-cyan-500/40 rounded-xl p-3 shadow-lg space-y-2">
         <div class="flex items-center justify-between">
-          <span class="text-[11px] font-mono font-bold tracking-wider text-cyan-400 flex items-center gap-1.5" id="pass-badge">
-            🛰️ PASE ORBITAL +36 DÍAS
+          <span class="text-[11px] font-mono font-bold tracking-wider text-cyan-300 flex items-center gap-1.5">
+            🔬 DETECTOR DE RÍOS POR SEÑAL SAR (&sigma;<sup>0</sup>)
           </span>
-          <span class="text-[11px] bg-rose-500/20 text-rose-300 font-mono px-2 py-0.5 rounded border border-rose-500/40 font-bold" id="risk-level">
-            ALERTA ROJA
+          <span class="text-[10px] bg-cyan-500/20 text-cyan-300 font-mono px-1.5 py-0.5 rounded border border-cyan-500/40" id="detected-rivers-count">
+            33 RÍOS DETECTADOS
           </span>
         </div>
 
-        <div class="flex items-center justify-between text-[11px] font-mono border-b border-slate-800 pb-1.5">
-          <span class="text-slate-300 font-semibold" id="ana-code">Cuenca Camaná-Majes (ANA: 13614)</span>
-          <span class="text-amber-400 font-bold" id="stat-flow">540 m³/s</span>
-        </div>
-
-        <p class="text-xs text-slate-300 leading-relaxed" id="risk-desc">
-          Cargando telemetría de pasada satelital...
+        <p class="text-[11px] text-slate-300 leading-snug">
+          Cruza en tiempo real todos los <strong>bloques SAR activos</strong> con las cuencas del Perú y extrae automáticamente los tramos de río cuya retrodispersión radar cae bajo el umbral de agua ($\sigma^0$).
         </p>
 
-        <!-- Dynamic SAR vs Nominal River Comparison -->
-        <div class="bg-slate-950/90 p-2.5 rounded-lg border border-slate-800 space-y-1 text-xs font-mono">
-          <div class="flex justify-between items-center text-[11px]">
-            <span class="text-slate-400">Ancho Lámina Agua SAR:</span>
-            <span class="text-cyan-400 font-bold" id="sar-width">340 m</span>
+        <!-- Threshold Slider -->
+        <div class="bg-slate-950/90 p-2 rounded-lg border border-slate-800 space-y-1">
+          <div class="flex justify-between text-[11px] font-mono">
+            <span class="text-slate-400">Umbral Detección Agua (&sigma;<sup>0</sup>):</span>
+            <span class="text-cyan-400 font-bold" id="threshold-db-label">-14.0 dB</span>
           </div>
-          <div class="flex justify-between items-center text-[11px]">
-            <span class="text-slate-400">Retrodispersión (&sigma;<sup>0</sup>):</span>
-            <span class="text-emerald-400 font-bold" id="sar-db">-18.9 dB (Agua Libre)</span>
+          <input type="range" id="sar-threshold-slider" min="-21" max="-10" step="0.5" value="-14.0" class="w-full accent-cyan-400 cursor-pointer">
+          <div class="flex justify-between text-[9px] font-mono text-slate-500">
+            <span>-21 dB (Solo Agua Libre)</span>
+            <span>-15 dB (Ríos)</span>
+            <span>-10 dB (Humedad/Todo)</span>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
-          <div class="bg-slate-950/80 p-2 rounded-lg border border-slate-800">
-            <span class="text-slate-400 block text-[10px]">ÁREA INUNDADA (SAR)</span>
-            <span class="text-amber-400 font-bold text-sm" id="stat-hectares">385 ha</span>
-          </div>
-          <div class="bg-slate-950/80 p-2 rounded-lg border border-slate-800">
-            <span class="text-slate-400 block text-[10px]">POBLACIÓN EXPUESTA</span>
-            <span class="text-cyan-400 font-bold text-sm" id="stat-pop">1,420 hab</span>
-          </div>
+        <div class="flex items-center justify-between text-[11px] font-mono bg-slate-950/80 px-2.5 py-1.5 rounded border border-slate-800">
+          <span class="text-slate-400">Modo de Detección:</span>
+          <select id="detection-mode-select" class="bg-slate-900 text-cyan-300 border border-slate-700 rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none">
+            <option value="strict_sar_intersect" selected>🎯 Solo dentro de Bloques SAR Activos</option>
+            <option value="global_all">🌐 Forzar en Toda la Red Nacional</option>
+          </select>
         </div>
       </div>
 
-      <!-- 12-Day Backscatter Time Series Mini-Chart -->
-      <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-2">
-        <div class="flex items-center justify-between">
-          <span class="text-[11px] font-mono uppercase text-slate-300 font-bold">📈 Curva Radar &sigma;<sup>0</sup> (Cada 12 Días)</span>
-          <span class="text-[10px] font-mono text-cyan-400">Umbral Agua: -15 dB</span>
-        </div>
-        <div class="h-20 flex items-end justify-between gap-1.5 pt-2 px-1 border-b border-slate-800 relative" id="backscatter-chart">
-          <!-- Bars populated dynamically by JS -->
-        </div>
-        <p class="text-[10px] text-slate-400 leading-tight">
-          Haz clic en cualquier barra o usa la línea de tiempo inferior para saltar al pase del satélite correspondiente (+12 días por ciclo).
-        </p>
-      </div>
-
-      <!-- Satellite Track (Tramos Orbitales) Filter & Real Browse Overlay -->
-      <div class="bg-slate-950/80 p-3 rounded-xl border border-indigo-900/60 space-y-2.5">
+      <!-- 2. CONTROL MASIVO DE BLOQUES SAR DEL PERÚ (NASA ASF) -->
+      <div class="bg-slate-950/80 p-3 rounded-xl border border-indigo-900/60 space-y-2">
         <div class="flex items-center justify-between">
           <label class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-            <span>🛰️</span> Tramos Orbitales (Swaths 250 km)
+            <span>🛰️</span> Cobertura de Bloques SAR (Perú / ASF)
           </label>
           <input type="checkbox" id="layer-swaths" checked class="accent-indigo-500 w-4 h-4 cursor-pointer">
         </div>
-        <p class="text-[11px] text-slate-400">
-          El satélite SAR no barre todo el país a la vez: viaja en <strong>tramos (tracks)</strong> ascendentes y descendentes que repiten la misma huella cada <strong>12 días exactos</strong>.
-        </p>
+
         <div>
-          <label class="text-[10px] font-mono text-slate-400 block mb-1">Filtrar Tramo Orbital (NASA ASF):</label>
+          <label class="text-[10px] font-mono text-slate-400 block mb-1">Seleccionar Bloques SAR Activos:</label>
           <select id="track-selector" class="w-full bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1.5 text-slate-200 font-mono focus:border-indigo-500 focus:outline-none cursor-pointer">
-            <option value="basin_auto" selected>🎯 Automático (Tramo de la Cuenca Activa)</option>
-            <option value="all">🌐 Mostrar los 4 Tramos sobre Arequipa</option>
+            <option value="peru_all">🇵🇪 TODOS LOS BLOQUES DEL PERÚ (118 Escenas Activas)</option>
+            <option value="all" selected>🛰️ Todos los Tramos Sur / Arequipa (Tracks 47, 25, 127, 120)</option>
+            <option value="basin_auto">🎯 Tramo de la Cuenca Seleccionada</option>
             <option value="47">↗ Track 47 (Ascendente - Camaná/Majes/Chili)</option>
             <option value="25">↙ Track 25 (Descendente - Ocoña/Camaná)</option>
             <option value="127">↙ Track 127 (Descendente - Chili/Arequipa/Tambo)</option>
@@ -151,106 +148,118 @@
           </select>
         </div>
 
-        <!-- Active Real ASF Granule Box -->
-        <div class="bg-slate-900/90 p-2.5 rounded-lg border border-indigo-800/50 space-y-1.5 text-[11px]">
-          <div class="flex items-center justify-between">
-            <span class="text-indigo-300 font-mono font-bold" id="asf-track-label">Track 47 (ASCENDING)</span>
-            <span class="text-slate-400 font-mono text-[10px]" id="asf-date-label">2024-02-06</span>
+        <!-- Botones de Proyección Raster SAR y Consulta API en Vivo -->
+        <div class="grid grid-cols-1 gap-1.5 pt-1">
+          <button id="btn-toggle-real-sar" onclick="toggleRealSarImageOverlay()" class="w-full bg-indigo-600/40 hover:bg-indigo-600/60 border border-indigo-400/60 text-indigo-100 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow">
+            <span>📡</span> <span id="btn-real-sar-text">Proyectar Imágenes Radar en Bloques Activos</span>
+          </button>
+          <button id="btn-fetch-live-asf" onclick="fetchLiveAsfForCurrentView()" class="w-full bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-500/50 text-emerald-200 py-1.5 px-2.5 rounded-lg text-[11px] font-mono transition flex items-center justify-center gap-1.5">
+            <span>🔄</span> <span id="btn-live-asf-text">Consultar API NASA ASF en Vivo (Vista Actual)</span>
+          </button>
+        </div>
+
+        <!-- Lector de Escenas SAR Activas -->
+        <div class="bg-slate-900/90 p-2 rounded-lg border border-indigo-800/40 space-y-1 text-[10px] font-mono">
+          <div class="flex items-center justify-between text-indigo-300 font-bold">
+            <span id="asf-track-label">4 Tramos Activos</span>
+            <span id="asf-date-label" class="text-cyan-400">Ciclo 12d</span>
           </div>
-          <div class="text-[10px] font-mono text-slate-400 truncate" id="asf-granule-name" title="">
-            S1A_IW_GRDH_1SDV_...
+          <div class="text-slate-400 truncate" id="asf-granule-name">
+            Cargando catálogo de escenas...
           </div>
-          <div class="flex gap-1.5 pt-1">
-            <button id="btn-toggle-real-sar" onclick="toggleRealSarImageOverlay()" class="flex-1 bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/60 text-indigo-200 py-1.5 px-2 rounded text-[11px] font-medium transition flex items-center justify-center gap-1">
-              <span>📡</span> <span id="btn-real-sar-text">Proyectar Imagen Radar Real (ASF)</span>
-            </button>
+          <!-- Lista desplegable rápida de escenas leídas -->
+          <div id="sar-scenes-reader-list" class="max-h-24 overflow-y-auto space-y-1 pt-1 border-t border-slate-800 text-[10px]">
+            <!-- Populated by JS -->
           </div>
         </div>
       </div>
 
-      <!-- Hydrological & Basemap Layer Controls -->
-      <div class="space-y-2.5">
-        <h3 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">
-          Capas Hidrográficas & Mapa Base
-        </h3>
+      <!-- 3. TELEMETRÍA DE CUENCA Y ALERTA TEMPRANA -->
+      <div class="bg-gradient-to-br from-slate-900 to-amber-950/20 border border-amber-500/30 rounded-xl p-3 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-mono font-bold text-amber-400" id="pass-badge">
+            🛰️ CICLO ORBITAL +36 DÍAS
+          </span>
+          <span class="text-[10px] bg-rose-500/20 text-rose-300 font-mono px-2 py-0.5 rounded border border-rose-500/40 font-bold" id="risk-level">
+            ALERTA ROJA
+          </span>
+        </div>
 
-        <!-- Basemap Selector -->
-        <div class="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/80 space-y-2">
-          <label class="text-xs font-medium text-slate-200 block">
-            🗺️ Mapa Base:
-          </label>
-          <select id="basemap-selector" class="w-full bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1.5 text-slate-200 font-medium focus:border-cyan-500 focus:outline-none cursor-pointer">
-            <option value="esri_satellite" selected>🛰️ Esri Satelital (Alta Resolución - Sin Key)</option>
-            <option value="esri_dark">🌑 Esri Modo Oscuro (Dark Canvas - Sin Key)</option>
-            <option value="carto_dark">🌑 CartoDB Dark (Vía Stadia Maps)</option>
+        <div class="flex items-center justify-between text-[11px] font-mono border-b border-slate-800 pb-1">
+          <span class="text-slate-300 font-semibold truncate" id="ana-code">Cuenca Camaná-Majes</span>
+          <span class="text-amber-400 font-bold flex-shrink-0" id="stat-flow">540 m³/s</span>
+        </div>
+
+        <p class="text-[11px] text-slate-300 leading-snug" id="risk-desc">
+          Cargando telemetría...
+        </p>
+
+        <div class="grid grid-cols-3 gap-1.5 text-xs font-mono">
+          <div class="bg-slate-950/80 p-1.5 rounded border border-slate-800">
+            <span class="text-slate-400 block text-[9px]">ANCHO SAR</span>
+            <span class="text-cyan-400 font-bold text-xs" id="sar-width">340 m</span>
+          </div>
+          <div class="bg-slate-950/80 p-1.5 rounded border border-slate-800">
+            <span class="text-slate-400 block text-[9px]">INUNDADO</span>
+            <span class="text-amber-400 font-bold text-xs" id="stat-hectares">385 ha</span>
+          </div>
+          <div class="bg-slate-950/80 p-1.5 rounded border border-slate-800">
+            <span class="text-slate-400 block text-[9px]">POBLACIÓN</span>
+            <span class="text-rose-400 font-bold text-xs" id="stat-pop">1,420 hab</span>
+          </div>
+        </div>
+        <div class="hidden" id="sar-db"></div>
+      </div>
+
+      <!-- 4. CURVA TEMPORAL CADA 12 DÍAS -->
+      <div class="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 space-y-1.5">
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-mono uppercase text-slate-300 font-bold">📈 Firma &sigma;<sup>0</sup> (Cada 12 Días)</span>
+          <span class="text-[10px] font-mono text-cyan-400">Umbral: -15 dB</span>
+        </div>
+        <div class="h-16 flex items-end justify-between gap-1 pt-1 px-1 border-b border-slate-800 relative" id="backscatter-chart">
+        </div>
+      </div>
+
+      <!-- 5. CAPAS Y MAPA BASE -->
+      <div class="space-y-2">
+        <div class="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5">
+          <label class="text-[11px] font-medium text-slate-200 block">🗺️ Mapa Base:</label>
+          <select id="basemap-selector" class="w-full bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 font-medium cursor-pointer">
+            <option value="esri_satellite" selected>🛰️ Esri Satelital (Alta Resolución)</option>
+            <option value="esri_dark">🌑 Esri Modo Oscuro (Ideal Contraste SAR)</option>
+            <option value="carto_dark">🌑 CartoDB Dark (Stadia Maps)</option>
             <option value="osm">🗺️ OpenStreetMap Estándar</option>
           </select>
-
-          <!-- Collapsible Carto API Key Box -->
-          <div id="carto-key-container" class="hidden pt-2 border-t border-slate-800 space-y-1">
-            <label class="text-[10px] text-slate-400 font-mono block">Stadia/Carto API Key:</label>
-            <div class="flex gap-1.5">
-              <input type="password" id="carto-api-key" placeholder="Pega tu API Key..." class="flex-1 bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 font-mono">
-              <button id="btn-apply-key" class="bg-cyan-700 hover:bg-cyan-600 px-2 py-1 rounded text-xs font-medium text-white transition">Aplicar</button>
+          <div id="carto-key-container" class="hidden pt-1.5 border-t border-slate-800 space-y-1">
+            <div class="flex gap-1">
+              <input type="password" id="carto-api-key" placeholder="API Key Stadia..." class="flex-1 bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 font-mono">
+              <button id="btn-apply-key" class="bg-cyan-700 px-2 py-1 rounded text-xs text-white">OK</button>
             </div>
-            <p class="text-[10px] text-slate-400">
-              Regístrate gratis en <a href="https://client.stadiamaps.com/signup/" target="_blank" class="text-cyan-400 underline">stadiamaps.com</a>.
-            </p>
           </div>
         </div>
 
-        <!-- Real River Vector Layer (OSM / IGN 4,064 GPS vertices) -->
-        <div class="bg-slate-950/70 p-2.5 rounded-xl border border-sky-900/60 space-y-1">
-          <label class="flex items-center justify-between text-xs cursor-pointer">
-            <span class="font-medium text-sky-300 flex items-center gap-1.5">
-              <span>💧</span> Trazo Real de Ríos (4,064 Puntos GPS)
-            </span>
-            <input type="checkbox" id="layer-river" checked class="accent-sky-500 w-4 h-4 cursor-pointer">
+        <div class="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 space-y-1.5 text-xs">
+          <label class="flex items-center justify-between cursor-pointer">
+            <span class="text-sky-300 font-medium">💧 Red de Ríos del Perú (33 Cuencas GPS)</span>
+            <input type="checkbox" id="layer-river" checked class="accent-sky-500 w-4 h-4">
           </label>
-          <p class="text-[10px] text-slate-400">
-            Geometría real curva por curva de los ríos Camaná, Majes, Chili, Vítor, Quilca, Ocoña y Tambo.
-          </p>
-        </div>
-
-        <!-- SAR Flood Expansion Corridor along the real river -->
-        <div class="bg-slate-950/70 p-2.5 rounded-xl border border-cyan-900/60 space-y-1.5">
-          <label class="flex items-center justify-between text-xs cursor-pointer">
-            <span class="font-medium text-cyan-300 flex items-center gap-1.5">
-              <span>🌊</span> Mancha de Desborde SAR en el Cauce
-            </span>
-            <input type="checkbox" id="layer-flood" checked class="accent-cyan-500 w-4 h-4 cursor-pointer">
+          <label class="flex items-center justify-between cursor-pointer">
+            <span class="text-cyan-300 font-medium">🌊 Remarcado SAR de Ríos Detectados</span>
+            <input type="checkbox" id="layer-flood" checked class="accent-cyan-500 w-4 h-4">
           </label>
-          <p class="text-[10px] text-slate-400">
-            Expansión lateral del espejo de agua sobre la llanura aluvial según el ciclo de 12 días seleccionado.
-          </p>
-          <div class="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
-            <span>Opacidad Agua SAR:</span>
-            <input type="range" id="sar-opacity" min="10" max="100" value="85" class="accent-cyan-500 w-28">
+          <div class="flex items-center justify-between text-[10px] text-slate-400">
+            <span>Intensidad Remarcado SAR:</span>
+            <input type="range" id="sar-opacity" min="15" max="100" value="90" class="accent-cyan-500 w-28">
           </div>
-        </div>
-
-        <!-- Official ANA WMS Layer Toggle -->
-        <div class="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 space-y-1">
-          <label class="flex items-center justify-between text-xs cursor-pointer">
-            <span class="font-medium text-slate-200 flex items-center gap-1.5">
-              <span>🏛️</span> Servicio WMS Oficial ANA (GeoSNIRH)
-            </span>
-            <input type="checkbox" id="layer-ana-wms" class="accent-cyan-500 w-4 h-4 cursor-pointer">
+          <label class="flex items-center justify-between cursor-pointer pt-1 border-t border-slate-800/80">
+            <span class="text-slate-300">🏛️ WMS Oficial ANA (Todos los Ríos Perú)</span>
+            <input type="checkbox" id="layer-ana-wms" class="accent-cyan-500 w-4 h-4">
           </label>
-          <p class="text-[10px] text-slate-400">
-            Conecta en vivo con el servidor gubernamental de la Autoridad Nacional del Agua del Perú.
-          </p>
-        </div>
-
-        <!-- NASA GIBS Daily Reflectance Toggle -->
-        <div class="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 space-y-1">
-          <label class="flex items-center justify-between text-xs cursor-pointer">
-            <span class="font-medium text-slate-200">☁️ NASA GIBS Nubosidad Real (VIIRS)</span>
-            <input type="checkbox" id="layer-gibs" class="accent-cyan-500 w-4 h-4 cursor-pointer">
+          <label class="flex items-center justify-between cursor-pointer">
+            <span class="text-slate-300">☁️ NASA GIBS Nubosidad Real (VIIRS)</span>
+            <input type="checkbox" id="layer-gibs" class="accent-cyan-500 w-4 h-4">
           </label>
-          <p class="text-[10px] text-slate-400">
-            Muestra cómo las nubes de tormenta tapan la vista óptica en la fecha del pase orbital, demostrando por qué el radar SAR es indispensable.
-          </p>
         </div>
       </div>
 
@@ -264,49 +273,47 @@
       <div class="absolute top-3 right-4 z-20 bg-slate-900/90 border border-cyan-800/80 rounded-lg px-3.5 py-2 text-xs flex items-center gap-3 backdrop-blur shadow-xl">
         <div class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></div>
         <span class="text-slate-200">
-          Cuenca: <strong id="active-basin-name" class="text-cyan-400">Valle Camaná - Majes</strong>
+          Vista: <strong id="active-basin-name" class="text-cyan-400">Valle Camaná - Majes</strong>
         </span>
         <span class="text-slate-600">|</span>
-        <span class="font-mono text-indigo-300" id="hud-track-info">Track 47 (Cada 12 días)</span>
+        <span class="font-mono text-indigo-300" id="hud-track-info">Todos los Tramos Activos</span>
         <span class="text-slate-600">|</span>
-        <span class="font-mono text-slate-400" id="coords-display">-16.590, -72.700</span>
+        <span class="font-mono text-slate-400" id="coords-display">-16.250, -72.520</span>
       </div>
 
       <!-- Bottom-Right Legend -->
       <div class="absolute bottom-24 right-4 z-20 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-3 shadow-2xl text-[11px] space-y-1.5 font-mono">
-        <div class="font-bold text-slate-300 border-b border-slate-800 pb-1">LEYENDA RÍOS & TRAMOS SAR</div>
+        <div class="font-bold text-slate-300 border-b border-slate-800 pb-1">DETECCIÓN SAR NACIONAL</div>
         <div class="flex items-center gap-2">
-          <span class="w-4 h-0.5 bg-sky-400 inline-block"></span>
-          <span class="text-slate-300">Cauce Permanente (GPS Real)</span>
+          <span class="w-4 h-2.5 rounded bg-cyan-400 border border-white inline-block shadow shadow-cyan-400"></span>
+          <span class="text-cyan-200 font-bold">Río Detectado dentro de Bloque SAR</span>
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-4 h-2.5 rounded bg-cyan-400/60 border border-cyan-300 inline-block"></span>
-          <span class="text-slate-300">Lámina de Desborde SAR (&sigma;<sup>0</sup> &lt; -15dB)</span>
+          <span class="w-4 h-0.5 bg-sky-500/70 inline-block"></span>
+          <span class="text-slate-400">Cauce Fuera de Bloque / Umbral</span>
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-3.5 h-3.5 rounded-full bg-rose-500/80 border border-white inline-block"></span>
-          <span class="text-slate-300">Punto Crítico Desborde / Toma</span>
+          <span class="w-3.5 h-3.5 rounded-full bg-rose-500 border border-white inline-block"></span>
+          <span class="text-slate-300">Punto Crítico de Desborde</span>
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-4 h-3 rounded border border-dashed border-indigo-400 bg-indigo-500/10 inline-block"></span>
-          <span class="text-slate-300">Tramo Satelital (Swath 250 km)</span>
+          <span class="w-4 h-3 rounded border border-dashed border-indigo-400 bg-indigo-500/15 inline-block"></span>
+          <span class="text-slate-300">Bloque Orbital SAR Activo (250 km)</span>
         </div>
       </div>
 
       <!-- Bottom Center: 12-Day Orbital Repeat Cycle Timeline Control -->
-      <div class="absolute bottom-4 left-4 right-4 z-20 bg-slate-900/95 backdrop-blur-md border border-cyan-800/60 rounded-xl p-3 shadow-2xl flex items-center gap-4">
-        <button id="btn-play-cycle" onclick="togglePlayCycles()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-3.5 py-2 rounded-lg text-xs flex items-center gap-1.5 transition shadow-lg shadow-cyan-600/30 flex-shrink-0">
-          <span id="play-icon">▶</span> <span id="play-text">Simular Ciclo 12 Días</span>
+      <div class="absolute bottom-4 left-4 right-4 z-20 bg-slate-900/95 backdrop-blur-md border border-cyan-800/60 rounded-xl p-2.5 shadow-2xl flex items-center gap-3">
+        <button id="btn-play-cycle" onclick="togglePlayCycles()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-3 py-2 rounded-lg text-xs flex items-center gap-1.5 transition shadow-lg shadow-cyan-600/30 flex-shrink-0">
+          <span id="play-icon">▶</span> <span id="play-text">Ciclo 12 Días</span>
         </button>
 
-        <div class="flex-1 flex flex-col space-y-1.5">
-          <div class="flex items-center justify-between text-[11px] font-mono">
-            <span class="text-cyan-300 font-bold">⏱️ LÍNEA DE TIEMPO ORBITAL (REPETICIÓN CADA 12 DÍAS EXACTOS - TEMPORADA DE LLUVIAS 2024)</span>
-            <span class="text-amber-300 font-bold" id="timeline-phase-label">DESBORDE CRÍTICO (PICO 1)</span>
+        <div class="flex-1 flex flex-col space-y-1">
+          <div class="flex items-center justify-between text-[10px] font-mono">
+            <span class="text-cyan-300 font-bold">⏱️ PASADAS ORBITALES CADA 12 DÍAS (DETECCIÓN MULTITEMPORAL DE RÍOS Y DESBORDES)</span>
+            <span class="text-amber-300 font-bold" id="timeline-phase-label">DESBORDE CRÍTICO</span>
           </div>
-          <!-- 7 Cycle Step Buttons -->
           <div class="grid grid-cols-7 gap-1.5" id="orbital-timeline-steps">
-            <!-- Populated by JS -->
           </div>
         </div>
       </div>

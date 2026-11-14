@@ -43,10 +43,10 @@ main {
   z-index: 10;
 }
 
-/* Eliminar bordes triangulares negros de las imágenes radar SAR de NASA ASF */
+/* Eliminar bordes triangulares negros de las imágenes radar SAR de NASA ASF en cualquier mapa base */
 .sar-browse-image {
+  filter: url(#remove-black-bg) contrast(1.22) saturate(1.2);
   mix-blend-mode: screen;
-  filter: contrast(1.2) saturate(1.15);
   pointer-events: none;
 }
 

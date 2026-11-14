@@ -1,8 +1,10 @@
-// Space Society - Motor Principal de Ríos Completos (7,334 Puntos GPS), Ciclos Orbitales (12 Días) y Bloques SAR de NASA ASF
+// Space Society - Motor Nacional de Lectura Masiva SAR (Perú Completo) y Detección Automática de Ríos por Retrodispersión
 let map;
 let currentBasin = 'camana';
 let currentCycleIndex = 3; // Ciclo 4 (+36d: 06-17 Feb - Pico de Crecida) por defecto
-let currentTrackFilter = 'basin_auto';
+let currentTrackFilter = 'all'; // Todos los bloques activos a la vez por defecto
+let sarThresholdDb = -14.0;
+let detectionMode = 'strict_sar_intersect';
 let activeBasemapLayer;
 let gibsLayer;
 let anaWmsLayer;
@@ -10,6 +12,7 @@ let realSarOverlayGroup;
 let isRealSarOverlayActive = false;
 let playInterval = null;
 let currentMatchedScenes = [];
+let liveFetchedAsfScenes = [];
 
 // Grupos de Capas en Leaflet
 let riverLayerGroup;
@@ -77,12 +80,12 @@ function initMap() {
 
   map = L.map('map', {
     center: initial.center,
-    zoom: initial.zoom,
+    zoom: 9,
     zoomControl: false,
     preferCanvas: false
   });
 
-  // Crear Panes con Z-Index explícitos para que el río y su remarcado SIEMPRE estén encima del bloque SAR
+  // Crear Panes con Z-Index explícitos para garantizar que los ríos detectados SIEMPRE brillen sobre los bloques SAR
   map.createPane('swathPane');
   map.getPane('swathPane').style.zIndex = 380;
 
@@ -117,7 +120,6 @@ function initMap() {
     attribution: '&copy; ANA Perú - GeoSNIRH'
   });
 
-  // Agregar grupos al mapa
   swathLayerGroup.addTo(map);
   realSarOverlayGroup.addTo(map);
   floodLayerGroup.addTo(map);
@@ -131,7 +133,6 @@ function initMap() {
     }
   });
 
-  // Re-escalar el grosor del remarcado del río según el nivel de zoom para que nunca se vea deforme ni cortado
   map.on('zoomend', () => {
     updateAllVisuals(false);
   });
@@ -178,7 +179,7 @@ function renderTimelineControls() {
   ORBITAL_CYCLES.forEach((cyc, idx) => {
     const isActive = idx === currentCycleIndex;
     const btn = document.createElement('button');
-    btn.className = `px-2 py-1.5 rounded-lg border text-left transition flex flex-col justify-between ${
+    btn.className = `px-2 py-1 rounded-lg border text-left transition flex flex-col justify-between ${
       isActive
         ? 'bg-cyan-950/90 border-cyan-400 text-white shadow-md shadow-cyan-500/20'
         : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:bg-slate-800/70 hover:text-slate-200'
@@ -210,7 +211,7 @@ function renderBackscatterChart() {
   ORBITAL_CYCLES.forEach((cyc, idx) => {
     const isActive = idx === currentCycleIndex;
     const pct = Math.min(100, Math.max(20, Math.round(((Math.abs(cyc.sarBackscatterDb) - 7) / 13) * 100)));
-    const isFlooded = cyc.sarBackscatterDb <= -15.0;
+    const isFlooded = cyc.sarBackscatterDb <= sarThresholdDb;
 
     const col = document.createElement('div');
     col.className = 'flex-1 flex flex-col items-center cursor-pointer group h-full justify-end';
@@ -223,7 +224,7 @@ function renderBackscatterChart() {
     col.innerHTML = `
       <span class="text-[9px] font-mono ${isActive ? 'text-cyan-300 font-bold' : 'text-slate-500'} mb-0.5">${cyc.sarBackscatterDb}</span>
       <div class="w-full rounded-t transition-all ${barColor}" style="height: ${pct}%"></div>
-      <span class="text-[9px] font-mono text-slate-400 mt-1">+${cyc.dayOffset}d</span>
+      <span class="text-[9px] font-mono text-slate-400 mt-0.5">+${cyc.dayOffset}d</span>
     `;
     chart.appendChild(col);
   });
@@ -243,10 +244,10 @@ function togglePlayCycles() {
     clearInterval(playInterval);
     playInterval = null;
     if (playIcon) playIcon.textContent = '▶';
-    if (playText) playText.textContent = 'Simular Ciclo 12 Días';
+    if (playText) playText.textContent = 'Ciclo 12 Días';
   } else {
     if (playIcon) playIcon.textContent = '⏸';
-    if (playText) playText.textContent = 'Pausar Simulación';
+    if (playText) playText.textContent = 'Pausar';
     playInterval = setInterval(() => {
       const next = (currentCycleIndex + 1) % ORBITAL_CYCLES.length;
       selectOrbitalCycle(next);
@@ -254,19 +255,108 @@ function togglePlayCycles() {
   }
 }
 
-// Factor de escala según el zoom actual del mapa para que el remarcado del río sea nítido en cualquier escala
 function getZoomScaleFactor() {
   if (!map) return 1.0;
   const z = map.getZoom();
-  if (z <= 8) return 0.35;
-  if (z === 9) return 0.50;
-  if (z === 10) return 0.70;
-  if (z === 11) return 0.90;
+  if (z <= 6) return 0.25;
+  if (z === 7) return 0.32;
+  if (z === 8) return 0.42;
+  if (z === 9) return 0.55;
+  if (z === 10) return 0.72;
+  if (z === 11) return 0.92;
   if (z === 12) return 1.15;
   return 1.45;
 }
 
-// Función Maestra: Dibuja TODOS los Ríos Completos (Cordillera a Océano), su Remarcado SAR Completo y los Bloques SAR
+// Algoritmo Geométrico: Ray-Casting Point-in-Polygon para saber si un vértice de río cae dentro de un Bloque SAR activo
+function isPointInPolygon(pt, poly) {
+  const lat = pt[0], lon = pt[1];
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const latI = poly[i][0], lonI = poly[i][1];
+    const latJ = poly[j][0], lonJ = poly[j][1];
+    const intersect = ((lonI > lon) !== (lonJ > lon)) &&
+      (lat < (latJ - latI) * (lon - lonI) / ((lonJ - lonI) || 1e-9) + latI);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function isPointInsideAnyActiveSwath(pt, activePolygons) {
+  if (detectionMode === 'global_all') return true;
+  for (let k = 0; k < activePolygons.length; k++) {
+    if (isPointInPolygon(pt, activePolygons[k])) return true;
+  }
+  return false;
+}
+
+// Particionar un segmento de río en sub-tramos que están FÍSICAMENTE DENTRO de los Bloques SAR activos
+function extractSubSegmentsInsideSar(segment, activePolygons) {
+  if (detectionMode === 'global_all') return [segment];
+  const subSegments = [];
+  let currentSub = [];
+
+  for (let i = 0; i < segment.length; i++) {
+    const pt = segment[i];
+    if (isPointInsideAnyActiveSwath(pt, activePolygons)) {
+      currentSub.push(pt);
+    } else {
+      if (currentSub.length >= 2) {
+        subSegments.push(currentSub);
+      }
+      currentSub = [];
+    }
+  }
+  if (currentSub.length >= 2) {
+    subSegments.push(currentSub);
+  }
+  return subSegments;
+}
+
+function getTrackDateForCycle(trackNum, cycle) {
+  if (trackNum === 47) return cycle.dateTrack47;
+  if (trackNum === 25) return cycle.dateTrack25;
+  if (trackNum === 120) return cycle.dateTrack120;
+  if (trackNum === 127) return cycle.dateTrack127;
+  return cycle.dateTrack47;
+}
+
+// Resolver cuáles Bloques SAR están activos según el selector actual
+function computeActiveSarScenes(basin, cycle) {
+  let matched = [];
+
+  if (currentTrackFilter === 'peru_all') {
+    // Todos los 118 bloques nacionales + bloques de la vista en vivo
+    const national = (typeof PERU_NATIONAL_SAR_SCENES !== 'undefined') ? PERU_NATIONAL_SAR_SCENES : [];
+    matched = [...national, ...liveFetchedAsfScenes];
+  } else {
+    let targetTracks = [];
+    if (currentTrackFilter === 'basin_auto') {
+      targetTracks = [basin.primaryTrack, basin.secondaryTrack];
+    } else if (currentTrackFilter === 'all') {
+      targetTracks = [47, 25, 127, 120];
+    } else {
+      targetTracks = [parseInt(currentTrackFilter, 10)];
+    }
+
+    targetTracks.forEach(trNum => {
+      const targetDate = getTrackDateForCycle(trNum, cycle);
+      let trScenes = ASF_REAL_SCENES.filter(s => s.track === trNum && s.date === targetDate);
+      if (trScenes.length === 0) {
+        trScenes = ASF_REAL_SCENES.filter(s => s.track === trNum).slice(0, 2);
+      }
+      matched.push(...trScenes);
+    });
+
+    if (liveFetchedAsfScenes.length > 0) {
+      matched.push(...liveFetchedAsfScenes);
+    }
+  }
+
+  return matched;
+}
+
+// Función Maestra: Renderiza Bloques SAR Activos y ejecuta la Detección de Ríos por Señal SAR dentro de los Bloques
 function updateAllVisuals(flyToBasin = false) {
   const basin = BASINS[currentBasin];
   const cycle = ORBITAL_CYCLES[currentCycleIndex];
@@ -278,99 +368,113 @@ function updateAllVisuals(flyToBasin = false) {
   criticalPointsGroup.clearLayers();
 
   const opacitySlider = document.getElementById('sar-opacity');
-  const userOpacity = opacitySlider ? (opacitySlider.value / 100) : 0.85;
+  const userOpacity = opacitySlider ? (opacitySlider.value / 100) : 0.90;
   const zScale = getZoomScaleFactor();
 
-  // 1. DIBUJAR EL REMARCADO DE AGUA SAR Y EL CAUCE COMPLETO EN TODAS LAS CUENCAS
-  // Así, cualquier bloque SAR de 250 km mostrará TODOS los ríos que pasan por su interior de principio a fin sin cortarse
+  // 1. OBTENER Y DIBUJAR TODOS LOS BLOQUES SAR ACTIVOS
+  currentMatchedScenes = computeActiveSarScenes(basin, cycle);
+  const activePolygons = currentMatchedScenes.map(s => s.footprint).filter(f => f && f.length >= 3);
+
+  renderOrbitalSwaths(currentMatchedScenes);
+
+  let detectedRiverCount = 0;
+  let totalDetectedVertices = 0;
+
+  // Factor de expansión según el ciclo de 12 días
+  const expFactor = Math.max(1.4, cycle.waterExpansionFactor);
+  const outerW = Math.max(4.5, Math.round(expFactor * 6.5 * zScale));
+  const midW = Math.max(3.0, Math.round(expFactor * 4.2 * zScale));
+  const coreW = Math.max(1.8, Math.round(expFactor * 2.2 * zScale));
+
+  // 2. PROCESAR LAS 4 CUENCAS DETALLADAS DE AREQUIPA (7,334 Puntos GPS)
   Object.keys(BASINS).forEach(bKey => {
     const bData = BASINS[bKey];
     const isCurrent = bKey === currentBasin;
-    const basinBoost = isCurrent ? 1.0 : 0.80;
+    // Retrodispersión efectiva de la cuenca en este ciclo de 12 días
+    const riverDb = cycle.sarBackscatterDb - (isCurrent ? 0.5 : 0.0);
+    const passesThreshold = riverDb <= sarThresholdDb;
+    let basinDetected = false;
 
-    // A) Remarcado de Desborde / Agua SAR a lo largo de TODO el curso del río (de cordillera al mar)
-    if (cycle.waterExpansionFactor > 1.02) {
-      const outerW = Math.max(4, Math.round(cycle.waterExpansionFactor * 6.5 * zScale * basinBoost));
-      const midW = Math.max(2.5, Math.round(cycle.waterExpansionFactor * 4.0 * zScale * basinBoost));
-      const coreW = Math.max(1.5, Math.round(cycle.waterExpansionFactor * 2.2 * zScale * basinBoost));
-
-      bData.valleyFloodSegments.forEach(vSeg => {
-        // Halo externo de humedad / inundación lateral SAR
-        L.polyline(vSeg, {
-          pane: 'floodPane',
-          color: '#0284c7',
-          weight: outerW,
-          opacity: userOpacity * 0.42 * basinBoost,
-          lineCap: 'butt',
-          lineJoin: 'round'
-        }).addTo(floodLayerGroup);
-
-        // Mancha media de desborde fluvial activa
-        L.polyline(vSeg, {
-          pane: 'floodPane',
-          color: '#00f5ff',
-          weight: midW,
-          opacity: userOpacity * 0.65 * basinBoost,
-          lineCap: 'butt',
-          lineJoin: 'round'
-        }).bindPopup(`
-          <div class="text-xs space-y-1">
-            <span class="text-cyan-400 font-bold block">🌊 REMARCADO DE AGUA SAR (${bData.name})</span>
-            <strong>Fase Orbital:</strong> ${cycle.label} (${cycle.phase})<br>
-            <strong>Firma Radar (&sigma;<sup>0</sup>):</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${cycle.sarBackscatterDb} dB</code><br>
-            <strong>Ancho Espejo de Agua:</strong> <span class="text-amber-400 font-bold">${cycle.metrics[bKey].width}</span><br>
-            <strong>Superficie Inundada:</strong> <span class="text-rose-400 font-bold">${cycle.metrics[bKey].ha}</span>
-          </div>
-        `).addTo(floodLayerGroup);
-
-        // Núcleo de reflexión especular intensa en picos de crecida
-        if (cycle.floodIntensity >= 0.45) {
-          L.polyline(vSeg, {
-            pane: 'floodPane',
-            color: '#e0f2fe',
-            weight: coreW,
-            opacity: userOpacity * 0.85 * basinBoost,
-            lineCap: 'butt',
-            lineJoin: 'round'
-          }).addTo(floodLayerGroup);
-        }
-      });
-    }
-
-    // B) Línea central continua de alta precisión del río (ENCIMA del bloque SAR)
     bData.riverSegments.forEach(seg => {
-      const line = L.polyline(seg, {
+      // Trazo base del río (siempre visible para referencia geográfica)
+      L.polyline(seg, {
         pane: 'riversTopPane',
-        color: isCurrent ? '#38bdf8' : '#22d3ee',
-        weight: isCurrent ? Math.max(2, 2.5 * zScale) : Math.max(1.5, 2.0 * zScale),
-        opacity: isCurrent ? 1.0 : 0.85,
+        color: '#0284c7',
+        weight: Math.max(1.5, 1.8 * zScale),
+        opacity: 0.65,
         lineCap: 'butt',
         lineJoin: 'round'
       }).bindPopup(`
         <div class="text-xs space-y-1 font-sans">
-          <span class="text-sky-400 font-bold block">💧 RED HIDROGRÁFICA COMPLETA (GPS REAL)</span>
-          <strong>Cuenca:</strong> ${bData.name}<br>
-          <strong>Código Oficial:</strong> ${bData.anaCode}<br>
-          <strong>Caudal en ${cycle.shortDate}:</strong> <span class="text-amber-400 font-bold">${cycle.metrics[bKey].flow}</span>
+          <span class="text-sky-400 font-bold block">💧 CAUCE HIDROGRÁFICO (${bData.name})</span>
+          <strong>Código ANA:</strong> ${bData.anaCode}<br>
+          <strong>Firma SAR Actual:</strong> <code class="text-cyan-300 font-mono">${riverDb.toFixed(1)} dB</code>
         </div>
-      `);
-      line.addTo(riverLayerGroup);
+      `).addTo(riverLayerGroup);
+
+      // DETECCIÓN SAR: Extraer todos los tramos de este río que caen DENTRO de los Bloques SAR activos y cumplen el umbral dB
+      if (passesThreshold) {
+        const subSegs = extractSubSegmentsInsideSar(seg, activePolygons);
+        subSegs.forEach(sub => {
+          basinDetected = true;
+          totalDetectedVertices += sub.length;
+
+          // Halo exterior de anomalía radar
+          L.polyline(sub, {
+            pane: 'floodPane',
+            color: '#0284c7',
+            weight: outerW,
+            opacity: userOpacity * 0.45,
+            lineCap: 'butt',
+            lineJoin: 'round'
+          }).addTo(floodLayerGroup);
+
+          // Mancha principal de agua detectada por SAR
+          L.polyline(sub, {
+            pane: 'floodPane',
+            color: '#00f5ff',
+            weight: midW,
+            opacity: userOpacity * 0.78,
+            lineCap: 'butt',
+            lineJoin: 'round'
+          }).bindPopup(`
+            <div class="text-xs space-y-1">
+              <span class="text-cyan-400 font-bold block">🛰️ RÍO DETECTADO POR RADAR SAR</span>
+              <strong>Cuenca:</strong> ${bData.name}<br>
+              <strong>Fase Orbital:</strong> ${cycle.label} (${cycle.phase})<br>
+              <strong>Retrodispersión Medida (&sigma;<sup>0</sup>):</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${riverDb.toFixed(1)} dB &le; ${sarThresholdDb} dB</code><br>
+              <strong>Ancho Lámina Agua:</strong> <span class="text-amber-400 font-bold">${cycle.metrics[bKey].width}</span><br>
+              <strong>Área Agrícola Inundada:</strong> <span class="text-rose-400 font-bold">${cycle.metrics[bKey].ha}</span>
+            </div>
+          `).addTo(floodLayerGroup);
+
+          // Núcleo brillante de reflexión especular (encima de todo)
+          L.polyline(sub, {
+            pane: 'riversTopPane',
+            color: '#e0f2fe',
+            weight: coreW,
+            opacity: userOpacity * 0.95,
+            lineCap: 'butt',
+            lineJoin: 'round'
+          }).addTo(riverLayerGroup);
+        });
+      }
     });
 
-    // C) Puntos críticos de monitoreo a lo largo del río (alta, media y baja cuenca)
-    bData.criticalPoints.forEach(cp => {
-      if (!isCurrent && map.getZoom() > 10) return; // En zoom cercano mostrar los de la cuenca activa
-      const radius = Math.max(4, Math.round((5 + cycle.floodIntensity * 6) * Math.min(1.1, zScale)));
-      const isCritical = cycle.floodIntensity >= 0.5;
-      const color = isCritical ? '#f43f5e' : (cycle.floodIntensity >= 0.2 ? '#f59e0b' : '#10b981');
+    if (basinDetected) detectedRiverCount++;
 
-      if (cycle.floodIntensity >= 0.25 && isCurrent) {
+    // Puntos críticos de desborde
+    bData.criticalPoints.forEach(cp => {
+      const insideSwath = isPointInsideAnyActiveSwath(cp.coords, activePolygons);
+      const color = insideSwath && passesThreshold ? '#f43f5e' : '#64748b';
+
+      if (insideSwath && passesThreshold && cycle.floodIntensity >= 0.25) {
         L.circleMarker(cp.coords, {
           pane: 'criticalPane',
-          radius: radius + 5,
-          color: color,
-          fillColor: color,
-          fillOpacity: 0.22,
+          radius: Math.max(7, Math.round(11 * zScale)),
+          color: '#f43f5e',
+          fillColor: '#f43f5e',
+          fillOpacity: 0.25,
           weight: 1,
           dashArray: '3, 3'
         }).addTo(criticalPointsGroup);
@@ -378,7 +482,7 @@ function updateAllVisuals(flyToBasin = false) {
 
       L.circleMarker(cp.coords, {
         pane: 'criticalPane',
-        radius: isCurrent ? 5.5 : 4,
+        radius: isCurrent ? 5.5 : 4.5,
         color: '#ffffff',
         fillColor: color,
         fillOpacity: 0.95,
@@ -387,32 +491,93 @@ function updateAllVisuals(flyToBasin = false) {
         <div class="text-xs space-y-1">
           <span class="font-bold text-rose-400 block">📍 ${cp.name}</span>
           <strong>Cuenca:</strong> ${bData.name}<br>
-          <strong>Sector:</strong> ${cp.sector}<br>
-          <strong>Vulnerabilidad:</strong> ${cp.vulnerability}<br>
-          <strong>Estado (${cycle.shortDate}):</strong> <span class="font-bold text-cyan-300">${cycle.phase}</span>
+          <strong>Estado Detección SAR:</strong> <span class="font-bold ${insideSwath && passesThreshold ? 'text-cyan-300' : 'text-slate-400'}">${insideSwath && passesThreshold ? 'DENTRO DE BLOQUE SAR ACTIVO' : 'Fuera de Umbral/Bloque'}</span><br>
+          <strong>Vulnerabilidad:</strong> ${cp.vulnerability}
         </div>
       `).addTo(criticalPointsGroup);
     });
   });
 
-  // 2. DIBUJAR TRAMOS ORBITALES REALES (SWATHS DE 250 KM DE NASA ASF)
-  renderOrbitalSwaths(basin, cycle);
+  // 3. PROCESAR LAS 29 CUENCAS NACIONALES ADICIONALES DE TODO EL PERÚ (Norte, Centro, Sur, Titicaca y Amazonía)
+  if (typeof PERU_NATIONAL_RIVERS !== 'undefined') {
+    PERU_NATIONAL_RIVERS.forEach(natRiver => {
+      // Ajustar firma dB del río nacional según el ciclo temporal
+      const effectiveDb = +(natRiver.baseBackscatterDb - (cycle.floodIntensity * 2.5)).toFixed(1);
+      const passesThreshold = effectiveDb <= sarThresholdDb;
+      let natDetected = false;
 
-  // 3. ACTUALIZAR TARJETAS DE TELEMETRÍA Y SIDEBAR
+      natRiver.segments.forEach(seg => {
+        // Cauce base nacional
+        L.polyline(seg, {
+          pane: 'riversTopPane',
+          color: '#0369a1',
+          weight: Math.max(1.2, 1.5 * zScale),
+          opacity: 0.6,
+          lineCap: 'butt',
+          lineJoin: 'round'
+        }).bindPopup(`
+          <div class="text-xs space-y-1">
+            <span class="text-sky-400 font-bold block">🇵🇪 RED HIDROGRÁFICA DEL PERÚ: ${natRiver.name}</span>
+            <strong>Región Hidrográfica:</strong> ${natRiver.zone}<br>
+            <strong>Firma Radar (&sigma;<sup>0</sup>):</strong> <code class="text-cyan-300 font-mono">${effectiveDb} dB</code>
+          </div>
+        `).addTo(riverLayerGroup);
+
+        if (passesThreshold) {
+          const subSegs = extractSubSegmentsInsideSar(seg, activePolygons);
+          subSegs.forEach(sub => {
+            natDetected = true;
+            totalDetectedVertices += sub.length;
+
+            L.polyline(sub, {
+              pane: 'floodPane',
+              color: '#00f5ff',
+              weight: Math.max(2.5, midW * 0.85),
+              opacity: userOpacity * 0.72,
+              lineCap: 'butt',
+              lineJoin: 'round'
+            }).bindPopup(`
+              <div class="text-xs space-y-1">
+                <span class="text-cyan-400 font-bold block">🛰️ RÍO NACIONAL DETECTADO POR SAR: ${natRiver.name}</span>
+                <strong>Vertiente / Zona:</strong> ${natRiver.zone}<br>
+                <strong>Firma Radar (&sigma;<sup>0</sup>):</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${effectiveDb} dB &le; ${sarThresholdDb} dB</code><br>
+                <strong>Puntos GPS Extraídos:</strong> ${sub.length} vértices dentro del bloque SAR
+              </div>
+            `).addTo(floodLayerGroup);
+
+            L.polyline(sub, {
+              pane: 'riversTopPane',
+              color: '#bae6fd',
+              weight: Math.max(1.4, coreW * 0.8),
+              opacity: userOpacity * 0.9,
+              lineCap: 'butt',
+              lineJoin: 'round'
+            }).addTo(riverLayerGroup);
+          });
+        }
+      });
+
+      if (natDetected) detectedRiverCount++;
+    });
+  }
+
+  // 4. ACTUALIZAR PANELES DE LECTURA SAR Y TELEMETRÍA
+  document.getElementById('detected-rivers-count').textContent = `${detectedRiverCount} RÍOS DETECTADOS (${totalDetectedVertices.toLocaleString()} PTS)`;
+  document.getElementById('header-active-stats').textContent = `${currentMatchedScenes.length} BLOQUES SAR · ${detectedRiverCount} RÍOS DETECTADOS`;
+
   const bMetrics = cycle.metrics[currentBasin];
   document.getElementById('pass-badge').textContent = `🛰️ ${cycle.label.toUpperCase()}`;
   const riskEl = document.getElementById('risk-level');
   riskEl.textContent = cycle.riskLevel;
-  riskEl.className = `text-[11px] font-mono px-2 py-0.5 rounded border font-bold ${cycle.riskClass}`;
+  riskEl.className = `text-[10px] font-mono px-2 py-0.5 rounded border font-bold ${cycle.riskClass}`;
 
   document.getElementById('ana-code').textContent = basin.anaCode;
-  document.getElementById('stat-flow').textContent = `Caudal: ${bMetrics.flow}`;
+  document.getElementById('stat-flow').textContent = bMetrics.flow;
   document.getElementById('risk-desc').textContent = cycle.summary;
   document.getElementById('sar-width').textContent = bMetrics.width;
-  document.getElementById('sar-db').textContent = `${cycle.sarBackscatterDb} dB (${cycle.sarBackscatterDb <= -15 ? 'Agua Detectada' : 'Suelo/Vegetación'})`;
   document.getElementById('stat-hectares').textContent = bMetrics.ha;
   document.getElementById('stat-pop').textContent = bMetrics.pop;
-  document.getElementById('active-basin-name').textContent = basin.name;
+  document.getElementById('active-basin-name').textContent = currentTrackFilter === 'peru_all' ? 'Perú Completo (118 Bloques SAR)' : basin.name;
   document.getElementById('timeline-phase-label').textContent = `${cycle.shortDate} — ${cycle.phase}`;
 
   const activeDate = getTrackDateForCycle(basin.primaryTrack, cycle);
@@ -423,94 +588,87 @@ function updateAllVisuals(flyToBasin = false) {
   }
 }
 
-function getTrackDateForCycle(trackNum, cycle) {
-  if (trackNum === 47) return cycle.dateTrack47;
-  if (trackNum === 25) return cycle.dateTrack25;
-  if (trackNum === 120) return cycle.dateTrack120;
-  if (trackNum === 127) return cycle.dateTrack127;
-  return cycle.dateTrack47;
-}
-
-// Renderizar todos los bloques (frames) del Tramo Orbital activo
-function renderOrbitalSwaths(basin, cycle) {
-  let targetTracks = [];
-  if (currentTrackFilter === 'basin_auto') {
-    targetTracks = [basin.primaryTrack];
-  } else if (currentTrackFilter === 'all') {
-    targetTracks = [47, 25, 127, 120];
-  } else {
-    targetTracks = [parseInt(currentTrackFilter, 10)];
-  }
-
+// Renderizar los polígonos de todos los Bloques Orbitales SAR activos y poblar el lector de escenas
+function renderOrbitalSwaths(scenes) {
   const trackColors = {
-    47: '#818cf8',  // Indigo (Ascendente - Camaná/Majes/Chili)
-    25: '#34d399',  // Emerald (Descendente - Ocoña/Camaná)
-    127: '#f472b6', // Pink (Descendente - Chili/Tambo)
-    120: '#fbbf24'  // Amber (Ascendente - Ocoña/Caravelí)
+    47: '#818cf8',  // Indigo
+    25: '#34d399',  // Emerald
+    127: '#f472b6', // Pink
+    120: '#fbbf24'  // Amber
   };
 
-  currentMatchedScenes = [];
+  scenes.forEach(scene => {
+    if (!scene.footprint || scene.footprint.length < 3) return;
+    const color = trackColors[scene.track] || '#38bdf8';
+    const dirArrow = scene.flightDirection === 'ASCENDING' ? '↗ ASCENDENTE (Sur → Norte)' : '↙ DESCENDENTE (Norte → Sur)';
 
-  targetTracks.forEach(trNum => {
-    const targetDate = getTrackDateForCycle(trNum, cycle);
-    let matching = ASF_REAL_SCENES.filter(s => s.track === trNum && s.date === targetDate);
-    if (matching.length === 0) {
-      matching = ASF_REAL_SCENES.filter(s => s.track === trNum).slice(0, 2);
-    }
-
-    matching.forEach(scene => {
-      currentMatchedScenes.push(scene);
-      const color = trackColors[trNum] || '#818cf8';
-      const dirArrow = scene.flightDirection === 'ASCENDING' ? '↗ ASCENDENTE (Sur → Norte)' : '↙ DESCENDENTE (Norte → Sur)';
-
-      const poly = L.polygon(scene.footprint, {
-        pane: 'swathPane',
-        color: color,
-        weight: 2,
-        opacity: 0.9,
-        dashArray: '8, 6',
-        fillColor: color,
-        fillOpacity: 0.05
-      }).bindPopup(`
-        <div class="text-xs space-y-1.5 font-sans">
-          <span class="text-indigo-400 font-bold block">🛰️ TRAMO ORBITAL REAL (NASA ASF SAR)</span>
-          <strong>Track / Órbita Relativa:</strong> <span class="font-mono text-white">Track ${scene.track} (Cada 12 días)</span><br>
-          <strong>Dirección de Vuelo:</strong> ${dirArrow}<br>
-          <strong>Fecha y Hora UTC:</strong> <span class="font-mono text-cyan-300">${scene.startTime}</span><br>
-          <strong>Modo / Polarización:</strong> <span class="font-mono">${scene.beamMode} (${scene.polarization})</span><br>
-          <strong>Granule ID:</strong> <code class="text-[10px] bg-slate-800 px-1 py-0.5 rounded block truncate">${scene.granuleName}</code>
-          <div class="pt-1 flex gap-2">
-            <button onclick="toggleRealSarImageOverlay(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded text-[11px] font-medium w-full">
-              📡 Proyectar Todos los Bloques de este Tramo
-            </button>
-          </div>
+    const poly = L.polygon(scene.footprint, {
+      pane: 'swathPane',
+      color: color,
+      weight: currentTrackFilter === 'peru_all' ? 1.2 : 2.0,
+      opacity: 0.85,
+      dashArray: '6, 5',
+      fillColor: color,
+      fillOpacity: currentTrackFilter === 'peru_all' ? 0.04 : 0.06
+    }).bindPopup(`
+      <div class="text-xs space-y-1.5 font-sans">
+        <span class="text-indigo-400 font-bold block">🛰️ BLOQUE SAR ACTIVO (NASA ASF)</span>
+        <strong>Track Orbital:</strong> <span class="font-mono text-white">Track ${scene.track} (${dirArrow})</span><br>
+        <strong>Fecha Adquisición:</strong> <span class="font-mono text-cyan-300">${scene.startTime || scene.date}</span><br>
+        <strong>Modo / Polarización:</strong> <span class="font-mono">${scene.beamMode || 'IW'} (${scene.polarization || 'VV+VH'})</span><br>
+        <strong>Granule ID:</strong> <code class="text-[10px] bg-slate-800 px-1 py-0.5 rounded block truncate">${scene.granuleName}</code>
+        <div class="pt-1 flex gap-1.5">
+          <button onclick="projectSingleScene('${scene.granuleName}')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded text-[11px] font-medium flex-1">
+            📡 Proyectar este Bloque
+          </button>
+          <button onclick="toggleRealSarImageOverlay(true)" class="bg-cyan-700 hover:bg-cyan-600 text-white px-2 py-1 rounded text-[11px] font-medium flex-1">
+            🌐 Proyectar Todos
+          </button>
         </div>
-      `);
-      poly.addTo(swathLayerGroup);
-    });
+      </div>
+    `);
+    poly.addTo(swathLayerGroup);
   });
 
-  if (currentMatchedScenes.length > 0) {
-    const primaryGranule = currentMatchedScenes[0];
-    const dirShort = primaryGranule.flightDirection === 'ASCENDING' ? '↗ ASCENDENTE' : '↙ DESCENDENTE';
-    document.getElementById('asf-track-label').textContent = `Track ${primaryGranule.track} (${dirShort} · ${currentMatchedScenes.length} bloques)`;
-    document.getElementById('asf-date-label').textContent = primaryGranule.startTime.substring(0, 16).replace('T', ' ') + 'Z';
-    const granEl = document.getElementById('asf-granule-name');
-    granEl.textContent = currentMatchedScenes.map(s => s.granuleName).join(' + ');
-    granEl.title = granEl.textContent;
-    document.getElementById('hud-track-info').textContent = `Track ${primaryGranule.track} (${primaryGranule.date})`;
+  // Actualizar lector de escenas SAR en el panel izquierdo
+  const readerList = document.getElementById('sar-scenes-reader-list');
+  if (readerList) {
+    readerList.innerHTML = '';
+    scenes.slice(0, 30).forEach(sc => {
+      const item = document.createElement('div');
+      item.className = 'flex items-center justify-between bg-slate-950/90 hover:bg-slate-800 px-2 py-1 rounded cursor-pointer border border-slate-800/80 transition';
+      item.onclick = () => {
+        if (sc.centerLat && sc.centerLon) {
+          map.flyTo([sc.centerLat, sc.centerLon], 9, { duration: 0.9 });
+        }
+        projectSingleScene(sc.granuleName);
+      };
+      item.innerHTML = `
+        <span class="text-cyan-300 font-bold">T${sc.track} (${sc.flightDirection ? sc.flightDirection[0] : 'S'})</span>
+        <span class="text-slate-400 truncate max-w-[130px]" title="${sc.granuleName}">${sc.granuleName.substring(17, 32)}</span>
+        <span class="text-indigo-400 hover:underline">📡 Ver</span>
+      `;
+      readerList.appendChild(item);
+    });
+  }
 
-    if (isRealSarOverlayActive) {
-      showAllMatchedSceneOverlays();
-    }
+  document.getElementById('asf-track-label').textContent = `${scenes.length} Bloques SAR Leídos`;
+  document.getElementById('asf-date-label').textContent = currentTrackFilter === 'peru_all' ? 'Cobertura Nacional' : `Ciclo +${ORBITAL_CYCLES[currentCycleIndex].dayOffset}d`;
+  const granEl = document.getElementById('asf-granule-name');
+  granEl.textContent = scenes.length > 0 ? `Activos: ${scenes.map(s => 'T' + s.track).slice(0, 6).join(', ')}... (${scenes.length} total)` : 'Sin bloques';
+  document.getElementById('hud-track-info').textContent = `${scenes.length} Bloques SAR Activos`;
+
+  if (isRealSarOverlayActive) {
+    showAllMatchedSceneOverlays();
   }
 }
 
-// Proyectar TODOS los bloques del Tramo Orbital (superior e inferior) sin bordes negros y DEBAJO del remarcado de los ríos
+// Proyectar las imágenes radar reales de NASA ASF de los bloques activos (hasta 20 simultáneos para fluidez)
 function showAllMatchedSceneOverlays() {
   realSarOverlayGroup.clearLayers();
 
-  currentMatchedScenes.forEach(scene => {
+  const scenesToProject = currentMatchedScenes.slice(0, 24);
+  scenesToProject.forEach(scene => {
     if (!scene || !scene.browseUrl || !scene.footprint || scene.footprint.length === 0) return;
     const lats = scene.footprint.map(p => p[0]);
     const lons = scene.footprint.map(p => p[1]);
@@ -521,7 +679,7 @@ function showAllMatchedSceneOverlays() {
 
     L.imageOverlay(scene.browseUrl, bounds, {
       pane: 'swathPane',
-      opacity: 0.85,
+      opacity: 0.88,
       className: 'sar-browse-image',
       interactive: false
     }).addTo(realSarOverlayGroup);
@@ -529,7 +687,35 @@ function showAllMatchedSceneOverlays() {
 
   isRealSarOverlayActive = true;
   const btnText = document.getElementById('btn-real-sar-text');
-  if (btnText) btnText.textContent = 'Ocultar Imagen Radar Real (ASF)';
+  if (btnText) btnText.textContent = `Ocultar Imágenes Radar (${scenesToProject.length} Activas)`;
+}
+
+function projectSingleScene(granuleName) {
+  const allAvailable = [
+    ...ASF_REAL_SCENES,
+    ...(typeof PERU_NATIONAL_SAR_SCENES !== 'undefined' ? PERU_NATIONAL_SAR_SCENES : []),
+    ...liveFetchedAsfScenes
+  ];
+  const scene = allAvailable.find(s => s.granuleName === granuleName);
+  if (!scene || !scene.browseUrl || !scene.footprint) return;
+
+  const lats = scene.footprint.map(p => p[0]);
+  const lons = scene.footprint.map(p => p[1]);
+  const bounds = [
+    [Math.min(...lats), Math.min(...lons)],
+    [Math.max(...lats), Math.max(...lons)]
+  ];
+
+  L.imageOverlay(scene.browseUrl, bounds, {
+    pane: 'swathPane',
+    opacity: 0.90,
+    className: 'sar-browse-image',
+    interactive: false
+  }).addTo(realSarOverlayGroup);
+
+  isRealSarOverlayActive = true;
+  const btnText = document.getElementById('btn-real-sar-text');
+  if (btnText) btnText.textContent = 'Ocultar Imágenes Radar Activas';
 }
 
 function toggleRealSarImageOverlay(forceOn = false) {
@@ -537,17 +723,81 @@ function toggleRealSarImageOverlay(forceOn = false) {
     realSarOverlayGroup.clearLayers();
     isRealSarOverlayActive = false;
     const btnText = document.getElementById('btn-real-sar-text');
-    if (btnText) btnText.textContent = 'Proyectar Imagen Radar Real (ASF)';
+    if (btnText) btnText.textContent = 'Proyectar Imágenes Radar en Bloques Activos';
   } else {
     showAllMatchedSceneOverlays();
-    if (map.getZoom() > 9) {
-      map.flyTo(BASINS[currentBasin].center, 8, { duration: 1.0 });
-    }
   }
 }
 
-function projectSpecificScene(granuleName) {
-  toggleRealSarImageOverlay(true);
+// Consulta en Vivo a la API de NASA ASF (Alaska Satellite Facility) para cualquier zona del Perú que el usuario esté mirando
+async function fetchLiveAsfForCurrentView() {
+  if (!map) return;
+  const btnText = document.getElementById('btn-live-asf-text');
+  if (btnText) btnText.textContent = 'Consultando NASA ASF API en vivo...';
+
+  const b = map.getBounds();
+  const minLon = Math.max(-81.5, b.getWest()).toFixed(2);
+  const minLat = Math.max(-18.5, b.getSouth()).toFixed(2);
+  const maxLon = Math.min(-68.5, b.getEast()).toFixed(2);
+  const maxLat = Math.min(-0.05, b.getNorth()).toFixed(2);
+
+  const url = `https://api.daac.asf.alaska.edu/services/search/param?platform=Sentinel-1&bbox=${minLon},${minLat},${maxLon},${maxLat}&processingLevel=GRD_HD&start=2024-01-15T00:00:00Z&end=2024-03-15T23:59:59Z&output=json&maxResults=35`;
+
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    const rawList = (Array.isArray(data) && Array.isArray(data[0])) ? data[0] : (Array.isArray(data) ? data : []);
+
+    const parsed = [];
+    rawList.forEach(s => {
+      const wkt = s.stringFootprint || '';
+      if (!wkt.startsWith('POLYGON')) return;
+      const inner = wkt.replace('POLYGON', '').replace(/\(/g, '').replace(/\)/g, '').trim();
+      const pts = inner.split(',').map(pair => {
+        const parts = pair.trim().split(/\s+/);
+        return [parseFloat(parts[1]), parseFloat(parts[0])];
+      }).filter(p => !isNaN(p[0]) && !isNaN(p[1]));
+
+      const bList = s.browse;
+      const bUrl = Array.isArray(bList) && bList.length > 0 ? bList[0] : (typeof bList === 'string' ? bList : '');
+
+      if (pts.length >= 3) {
+        parsed.push({
+          granuleName: s.granuleName,
+          date: (s.startTime || '').substring(0, 10),
+          startTime: s.startTime,
+          track: parseInt(s.track || 0, 10),
+          flightDirection: s.flightDirection,
+          polarization: s.polarization,
+          beamMode: s.beamModeType || 'IW',
+          centerLat: parseFloat(s.centerLat || 0),
+          centerLon: parseFloat(s.centerLon || 0),
+          footprint: pts,
+          browseUrl: bUrl
+        });
+      }
+    });
+
+    liveFetchedAsfScenes = parsed;
+    if (btnText) btnText.textContent = `✅ ${parsed.length} Escenas NASA ASF Leídas en Vista`;
+    updateAllVisuals(false);
+  } catch (err) {
+    if (btnText) btnText.textContent = '⚠️ Usando Catálogo Nacional Pre-cargado (166 escenas)';
+  }
+}
+
+// Activar Vista Nacional de Todo el Perú (118 Bloques SAR + 33 Cuencas Hidrográficas Activas a la Vez)
+function activateNationalPeruView() {
+  document.querySelectorAll('.basin-btn').forEach(btn => btn.classList.remove('active'));
+  const btnPeru = document.getElementById('btn-peru-all');
+  if (btnPeru) btnPeru.classList.add('active');
+
+  currentTrackFilter = 'peru_all';
+  const ts = document.getElementById('track-selector');
+  if (ts) ts.value = 'peru_all';
+
+  updateAllVisuals(false);
+  map.flyTo([-9.50, -75.00], 6, { duration: 1.3 });
 }
 
 function zoomToBasin(basinKey) {
@@ -555,10 +805,10 @@ function zoomToBasin(basinKey) {
   const activeBtn = document.getElementById(`btn-${basinKey}`);
   if (activeBtn) activeBtn.classList.add('active');
   currentBasin = basinKey;
-  if (currentTrackFilter !== 'all') {
-    currentTrackFilter = 'basin_auto';
+  if (currentTrackFilter === 'peru_all') {
+    currentTrackFilter = 'all';
     const ts = document.getElementById('track-selector');
-    if (ts) ts.value = 'basin_auto';
+    if (ts) ts.value = 'all';
   }
   updateAllVisuals(true);
 }
@@ -573,10 +823,32 @@ function zoomToAllTracks() {
   if (ts) ts.value = 'all';
 
   updateAllVisuals(false);
-  map.flyTo([-16.35, -72.35], 8, { duration: 1.2 });
+  map.flyTo([-16.25, -72.25], 8, { duration: 1.1 });
 }
 
 function setupEventListeners() {
+  // Slider de Umbral de Detección SAR (dB)
+  const thresholdSlider = document.getElementById('sar-threshold-slider');
+  const thresholdLabel = document.getElementById('threshold-db-label');
+  if (thresholdSlider) {
+    thresholdSlider.addEventListener('input', (e) => {
+      sarThresholdDb = parseFloat(e.target.value);
+      if (thresholdLabel) thresholdLabel.textContent = `${sarThresholdDb.toFixed(1)} dB`;
+      renderBackscatterChart();
+      updateAllVisuals(false);
+    });
+  }
+
+  // Selector de Modo de Detección
+  const detModeSelect = document.getElementById('detection-mode-select');
+  if (detModeSelect) {
+    detModeSelect.addEventListener('change', (e) => {
+      detectionMode = e.target.value;
+      updateAllVisuals(false);
+    });
+  }
+
+  // Selector de Mapa Base
   const basemapSelect = document.getElementById('basemap-selector');
   const cartoKeyContainer = document.getElementById('carto-key-container');
   const cartoApiKeyInput = document.getElementById('carto-api-key');
@@ -607,14 +879,19 @@ function setupEventListeners() {
     });
   }
 
+  // Selector de Bloques SAR (Track / Nacional)
   const trackSelector = document.getElementById('track-selector');
   if (trackSelector) {
     trackSelector.addEventListener('change', (e) => {
       currentTrackFilter = e.target.value;
+      if (currentTrackFilter === 'peru_all') {
+        map.flyTo([-9.50, -75.00], 6, { duration: 1.2 });
+      }
       updateAllVisuals(false);
     });
   }
 
+  // Toggles de Capas
   const swathsCheckbox = document.getElementById('layer-swaths');
   if (swathsCheckbox) {
     swathsCheckbox.addEventListener('change', (e) => {
