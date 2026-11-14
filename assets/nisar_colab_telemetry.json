@@ -1,0 +1,494 @@
+{
+  "source_colab": "https://colab.research.google.com/drive/1qMLpZEaIAQWHhfALsL-8MSctPT74JVLl",
+  "dataset": "NISAR_L2_GCOV_PROVISIONAL_V1 (science/LSAR/GCOV/grids/frequencyA/HHHH)",
+  "granule_estiaje": "NISAR_L2_PR_GCOV_029_147_A_169_2005_DHDH (2026-09-04T10:40:47Z)",
+  "granule_crecida": "NISAR_L2_PR_GCOV_010_147_A_169_2005_DHDH (2026-01-19T10:40:52Z)",
+  "total_granules_found": 27,
+  "center_wgs84": [
+    -16.565,
+    -72.725
+  ],
+  "radius_m": 3500,
+  "bounds_wgs84": [
+    [
+      -16.59663,
+      -72.7578
+    ],
+    [
+      -16.53337,
+      -72.6922
+    ]
+  ],
+  "pixel_resolution_m": 20,
+  "grid_size": [
+    350,
+    350
+  ],
+  "metrics": {
+    "zona": "Valle Majes - Caman\u00e1",
+    "fecha_base": "2026-09-04",
+    "fecha_crecida": "2026-01-19",
+    "expansion_cauce_ha": 158.72,
+    "llanura_saturada_inundada_ha": 618.88,
+    "total_afectado_ha": 777.6,
+    "delta_db_promedio_valle": 0.89
+  },
+  "sample_nodes": [
+    {
+      "lat": -16.53427,
+      "lon": -72.70438,
+      "db_estiaje": -4.71,
+      "db_crecida": -13.53,
+      "delta_db": -8.82,
+      "type": "open_water"
+    },
+    {
+      "lat": -16.53536,
+      "lon": -72.70307,
+      "db_estiaje": -3.33,
+      "db_crecida": -13.14,
+      "delta_db": -9.8,
+      "type": "open_water"
+    },
+    {
+      "lat": -16.53644,
+      "lon": -72.70288,
+      "db_estiaje": -8.63,
+      "db_crecida": -17.55,
+      "delta_db": -8.92,
+      "type": "open_water"
+    },
+    {
+      "lat": -16.53753,
+      "lon": -72.71788,
+      "db_estiaje": -0.78,
+      "db_crecida": -8.73,
+      "delta_db": -7.94,
+      "type": "open_water"
+    },
+    {
+      "lat": -16.53861,
+      "lon": -72.70007,
+      "db_estiaje": -3.24,
+      "db_crecida": -11.76,
+      "delta_db": -8.53,
+      "type": "open_water"
+    },
+    {
+      "lat": -16.5397,
+      "lon": -72.70063,
+      "db_estiaje": -10.98,
+      "db_crecida": -20.0,
+      "delta_db": -9.02,
+      "type": "open_water"
+    },
+    {
+      "lat": -16.54078,
+      "lon": -72.72181,
+      "db_estiaje": -3.73,
+      "db_crecida": -10.69,
+      "delta_db": -6.96,
+      "type": "open_water"
+    },
+    {
+      "lat": -16.54186,
+      "lon": -72.72163,
+      "db_estiaje": -3.04,
+      "db_crecida": -15.39,
+      "delta_db": -12.35,
+      "type": "open_water"
+    },
+    {
+      "lat": -16.54295,
+      "lon": -72.72294,
+      "db_estiaje": -5.88,
+      "db_crecida": -11.96,
+      "delta_db": -6.08,
+      "type": "open_water"
+    },
+    {
+      "lat": -16.54403,
+      "lon": -72.72088,
+      "db_estiaje": -0.39,
+      "db_crecida": -8.43,
+      "delta_db": -8.04,
+      "type": "open_water"
+    },
+    {
+      "lat": -16.54512,
+      "lon": -72.70495,
+      "db_estiaje": -10.1,
+      "db_crecida": -3.04,
+      "delta_db": 7.06,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.5462,
+      "lon": -72.70813,
+      "db_estiaje": -14.02,
+      "db_crecida": -3.63,
+      "delta_db": 10.39,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.54729,
+      "lon": -72.70776,
+      "db_estiaje": -13.53,
+      "db_crecida": -2.25,
+      "delta_db": 11.27,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.54837,
+      "lon": -72.71282,
+      "db_estiaje": -14.61,
+      "db_crecida": -4.02,
+      "delta_db": 10.59,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.54946,
+      "lon": -72.713,
+      "db_estiaje": -15.1,
+      "db_crecida": -2.45,
+      "delta_db": 12.65,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.55054,
+      "lon": -72.713,
+      "db_estiaje": -16.47,
+      "db_crecida": -2.06,
+      "delta_db": 14.41,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.55163,
+      "lon": -72.71525,
+      "db_estiaje": -15.39,
+      "db_crecida": -2.65,
+      "delta_db": 12.75,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.55271,
+      "lon": -72.71694,
+      "db_estiaje": -16.37,
+      "db_crecida": -4.51,
+      "delta_db": 11.86,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.55379,
+      "lon": -72.71619,
+      "db_estiaje": -15.98,
+      "db_crecida": -6.27,
+      "delta_db": 9.71,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.55488,
+      "lon": -72.72163,
+      "db_estiaje": -15.29,
+      "db_crecida": -5.39,
+      "delta_db": 9.9,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.55596,
+      "lon": -72.72219,
+      "db_estiaje": -15.69,
+      "db_crecida": -4.8,
+      "delta_db": 10.88,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.55705,
+      "lon": -72.72294,
+      "db_estiaje": -13.92,
+      "db_crecida": -6.47,
+      "delta_db": 7.45,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.55813,
+      "lon": -72.71919,
+      "db_estiaje": -13.43,
+      "db_crecida": -6.18,
+      "delta_db": 7.25,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.55922,
+      "lon": -72.72294,
+      "db_estiaje": -13.63,
+      "db_crecida": -2.65,
+      "delta_db": 10.98,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.5603,
+      "lon": -72.72013,
+      "db_estiaje": -13.73,
+      "db_crecida": -3.43,
+      "delta_db": 10.29,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.56139,
+      "lon": -72.722,
+      "db_estiaje": -14.02,
+      "db_crecida": -5.78,
+      "delta_db": 8.24,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.56247,
+      "lon": -72.72594,
+      "db_estiaje": -15.78,
+      "db_crecida": -5.78,
+      "delta_db": 10.0,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.56355,
+      "lon": -72.72537,
+      "db_estiaje": -15.78,
+      "db_crecida": -4.9,
+      "delta_db": 10.88,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.56464,
+      "lon": -72.71844,
+      "db_estiaje": -14.9,
+      "db_crecida": -4.61,
+      "delta_db": 10.29,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.56572,
+      "lon": -72.719,
+      "db_estiaje": -11.96,
+      "db_crecida": -6.57,
+      "delta_db": 5.39,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.56681,
+      "lon": -72.7265,
+      "db_estiaje": -12.94,
+      "db_crecida": -4.51,
+      "delta_db": 8.43,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.56789,
+      "lon": -72.72481,
+      "db_estiaje": -17.06,
+      "db_crecida": -6.57,
+      "delta_db": 10.49,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.56898,
+      "lon": -72.71938,
+      "db_estiaje": -13.33,
+      "db_crecida": -4.31,
+      "delta_db": 9.02,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.57006,
+      "lon": -72.72144,
+      "db_estiaje": -14.71,
+      "db_crecida": -1.86,
+      "delta_db": 12.84,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.57115,
+      "lon": -72.72069,
+      "db_estiaje": -14.02,
+      "db_crecida": -0.1,
+      "delta_db": 13.92,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.57223,
+      "lon": -72.72444,
+      "db_estiaje": -17.35,
+      "db_crecida": -1.76,
+      "delta_db": 15.59,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.57331,
+      "lon": -72.73081,
+      "db_estiaje": -12.65,
+      "db_crecida": -2.35,
+      "delta_db": 10.29,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.5744,
+      "lon": -72.71938,
+      "db_estiaje": -13.04,
+      "db_crecida": 0.0,
+      "delta_db": 13.04,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.57548,
+      "lon": -72.71956,
+      "db_estiaje": -12.94,
+      "db_crecida": -0.2,
+      "delta_db": 12.75,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.57657,
+      "lon": -72.72706,
+      "db_estiaje": -14.12,
+      "db_crecida": 0.0,
+      "delta_db": 14.12,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.57765,
+      "lon": -72.71881,
+      "db_estiaje": -17.06,
+      "db_crecida": -6.76,
+      "delta_db": 10.29,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.57874,
+      "lon": -72.72163,
+      "db_estiaje": -16.96,
+      "db_crecida": -2.25,
+      "delta_db": 14.71,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.57982,
+      "lon": -72.71169,
+      "db_estiaje": -13.14,
+      "db_crecida": 0.0,
+      "delta_db": 13.14,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.58091,
+      "lon": -72.71975,
+      "db_estiaje": -17.75,
+      "db_crecida": -5.39,
+      "delta_db": 12.35,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.58199,
+      "lon": -72.71994,
+      "db_estiaje": -14.51,
+      "db_crecida": -2.25,
+      "delta_db": 12.25,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.58307,
+      "lon": -72.72125,
+      "db_estiaje": -12.94,
+      "db_crecida": -3.24,
+      "delta_db": 9.71,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.58416,
+      "lon": -72.71432,
+      "db_estiaje": -15.69,
+      "db_crecida": -2.75,
+      "delta_db": 12.94,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.58524,
+      "lon": -72.72088,
+      "db_estiaje": -14.02,
+      "db_crecida": -3.04,
+      "delta_db": 10.98,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.58633,
+      "lon": -72.71975,
+      "db_estiaje": -12.84,
+      "db_crecida": -0.98,
+      "delta_db": 11.86,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.58741,
+      "lon": -72.71657,
+      "db_estiaje": -11.76,
+      "db_crecida": -0.1,
+      "delta_db": 11.67,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.5885,
+      "lon": -72.73212,
+      "db_estiaje": -18.92,
+      "db_crecida": -3.63,
+      "delta_db": 15.29,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.58958,
+      "lon": -72.71338,
+      "db_estiaje": -12.65,
+      "db_crecida": -0.69,
+      "delta_db": 11.96,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.59067,
+      "lon": -72.73287,
+      "db_estiaje": -17.16,
+      "db_crecida": -2.75,
+      "delta_db": 14.41,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.59175,
+      "lon": -72.72894,
+      "db_estiaje": -15.98,
+      "db_crecida": -5.0,
+      "delta_db": 10.98,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.59283,
+      "lon": -72.73381,
+      "db_estiaje": -18.53,
+      "db_crecida": -6.18,
+      "delta_db": 12.35,
+      "type": "flooded_plain"
+    },
+    {
+      "lat": -16.59392,
+      "lon": -72.71975,
+      "db_estiaje": -3.53,
+      "db_crecida": -17.84,
+      "delta_db": -14.31,
+      "type": "open_water"
+    },
+    {
+      "lat": -16.595,
+      "lon": -72.73362,
+      "db_estiaje": -18.43,
+      "db_crecida": -3.33,
+      "delta_db": 15.1,
+      "type": "flooded_plain"
+    }
+  ]
+}

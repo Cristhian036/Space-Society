@@ -65,6 +65,9 @@ document.addEventListener('DOMContentLoaded', () => {
   renderBackscatterChart();
   setupEventListeners();
   updateAllVisuals(true);
+  if (typeof renderNisarColabLayer === 'function') {
+    renderNisarColabLayer();
+  }
 
   setTimeout(() => {
     if (map) map.invalidateSize();

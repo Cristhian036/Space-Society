@@ -750,3 +750,143 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// ============================================================================
+// INTEGRACIÓN GOOGLE COLAB: NISAR L2 GCOV MULTITEMPORAL (HHHH ΔdB LOG-RATIO)
+// Valle Majes - Camaná (lon=-72.725, lat=-16.565, radio=3500m, EPSG:32718)
+// ============================================================================
+let nisarColabOverlay = null;
+let nisarColabVectorGroup = null;
+let nisarColabTelemetryCache = null;
+
+const NISAR_COLAB_BOUNDS = [
+  [-16.59663, -72.7578],
+  [-16.53337, -72.6922]
+];
+
+async function renderNisarColabLayer() {
+  if (!map) return;
+  const toggleCb = document.getElementById('toggle-nisar-colab');
+  const modeSelect = document.getElementById('nisar-colab-mode');
+
+  if (!nisarColabVectorGroup) {
+    nisarColabVectorGroup = L.layerGroup().addTo(map);
+  }
+
+  if (!toggleCb || !toggleCb.checked) {
+    if (nisarColabOverlay && map.hasLayer(nisarColabOverlay)) {
+      map.removeLayer(nisarColabOverlay);
+    }
+    nisarColabVectorGroup.clearLayers();
+    return;
+  }
+
+  const mode = modeSelect ? modeSelect.value : 'water_mask';
+  const imageMap = {
+    water_mask: 'assets/nisar_gcov_water_mask.png',
+    delta_db: 'assets/nisar_gcov_delta_db.png',
+    crecida: 'assets/nisar_gcov_crecida.png',
+    estiaje: 'assets/nisar_gcov_estiaje.png'
+  };
+
+  const imgUrl = imageMap[mode] || imageMap.water_mask;
+
+  if (nisarColabOverlay && map.hasLayer(nisarColabOverlay)) {
+    map.removeLayer(nisarColabOverlay);
+  }
+
+  nisarColabOverlay = L.imageOverlay(imgUrl, NISAR_COLAB_BOUNDS, {
+    pane: 'riversTopPane',
+    opacity: mode === 'water_mask' ? 0.92 : 0.85,
+    interactive: false
+  }).addTo(map);
+
+  nisarColabVectorGroup.clearLayers();
+
+  // Marco delimitador del recorte NISAR L2 GCOV (7 km x 7 km, 350x350 px @ 20m)
+  L.rectangle(NISAR_COLAB_BOUNDS, {
+    pane: 'criticalPane',
+    color: '#22d3ee',
+    weight: 2,
+    dashArray: '6, 4',
+    fillOpacity: 0.02
+  })
+    .bindPopup(
+      `
+      <div class="text-xs space-y-1 font-sans">
+        <span class="text-cyan-400 font-bold block">🛰️ VENTANA NISAR L2 GCOV (GOOGLE COLAB)</span>
+        <strong>Colección:</strong> <code class="text-emerald-300 font-mono">NISAR_L2_GCOV_PROVISIONAL_V1</code><br>
+        <strong>Capa HDF5:</strong> <code class="text-slate-300 font-mono">science/LSAR/GCOV/grids/frequencyA/HHHH</code><br>
+        <strong>Estiaje [10]:</strong> <span class="font-mono text-white">04-Sep-2026 (GCOV_029_147_A)</span><br>
+        <strong>Crecida [25]:</strong> <span class="font-mono text-white">19-Ene-2026 (GCOV_010_147_A)</span><br>
+        <strong>Expansión Cauce (ΔdB &lt; -3.5):</strong> <span class="text-rose-400 font-bold">158.72 ha</span><br>
+        <strong>Llanura Saturada (ΔdB &gt; +3.5):</strong> <span class="text-cyan-300 font-bold">618.88 ha</span><br>
+        <strong>ΔdB Promedio Valle:</strong> <span class="text-amber-300 font-mono">+0.89 dB</span>
+      </div>
+    `
+    )
+    .addTo(nisarColabVectorGroup);
+
+  // Cargar los 57 nodos de telemetría real extraídos de las matrices del Colab
+  if (!nisarColabTelemetryCache) {
+    try {
+      const resp = await fetch('assets/nisar_colab_telemetry.json');
+      if (resp.ok) {
+        nisarColabTelemetryCache = await resp.json();
+      }
+    } catch (_e) {
+      // ignore
+    }
+  }
+
+  if (
+    nisarColabTelemetryCache &&
+    Array.isArray(nisarColabTelemetryCache.sample_nodes)
+  ) {
+    nisarColabTelemetryCache.sample_nodes.forEach((pt, idx) => {
+      if (idx % 2 !== 0) return;
+      const isOpenWater = pt.type === 'open_water';
+      L.circleMarker([pt.lat, pt.lon], {
+        pane: 'criticalPane',
+        radius: 4.5,
+        color: '#ffffff',
+        fillColor: isOpenWater ? '#f43f5e' : '#00d7ff',
+        fillOpacity: 0.95,
+        weight: 1.3
+      })
+        .bindPopup(
+          `
+          <div class="text-xs space-y-1 font-sans">
+            <span class="${isOpenWater ? 'text-rose-400' : 'text-cyan-300'} font-bold block">
+              ${isOpenWater ? '🌊 AGUA ABIERTA NUEVA (ESPEJO RADAR ΔdB < -3.5)' : '🌾 LLANURA INUNDADA (DOBLE REBOTE L-BAND ΔdB > +3.5)'}
+            </span>
+            <strong>Coordenada:</strong> <span class="font-mono">${pt.lat}, ${pt.lon}</span><br>
+            <strong>Estiaje (04-Sep-2026):</strong> <span class="font-mono text-slate-300">${pt.db_estiaje} dB</span><br>
+            <strong>Crecida (19-Ene-2026):</strong> <span class="font-mono text-white">${pt.db_crecida} dB</span><br>
+            <strong>Cambio Diferencial (ΔdB):</strong> <code class="bg-slate-800 px-1.5 py-0.5 rounded font-mono font-bold ${isOpenWater ? 'text-rose-300' : 'text-cyan-300'}">${pt.delta_db > 0 ? '+' : ''}${pt.delta_db} dB</code>
+          </div>
+        `
+        )
+        .addTo(nisarColabVectorGroup);
+    });
+  }
+}
+
+function flyToNisarColabZone() {
+  const toggleCb = document.getElementById('toggle-nisar-colab');
+  if (toggleCb) toggleCb.checked = true;
+  renderNisarColabLayer();
+  if (map) {
+    map.flyTo([-16.565, -72.725], 13, { duration: 1.3 });
+  }
+}
+
+function openNisarColabModal() {
+  const modal = document.getElementById('nisar-colab-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeNisarColabModal() {
+  const modal = document.getElementById('nisar-colab-modal');
+  if (modal) modal.classList.add('hidden');
+}

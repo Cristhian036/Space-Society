@@ -130,6 +130,40 @@
         </div>
       </div>
 
+      <!-- 0.5 DATOS REALES NISAR L2 GCOV EXTRAÍDOS DEL GOOGLE COLAB (ΔdB HHHH VALLE MAJES-CAMANÁ) -->
+      <div class="bg-gradient-to-br from-indigo-950/70 via-slate-900 to-rose-950/30 border border-indigo-400/50 rounded-xl p-3 shadow-xl space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="text-[11px] font-mono font-bold tracking-wider text-indigo-300 flex items-center gap-1.5 cursor-pointer">
+            <span>🛰️</span> COLAB NISAR L2 GCOV (&Delta;dB HHHH)
+          </label>
+          <input type="checkbox" id="toggle-nisar-colab" checked onchange="renderNisarColabLayer()" class="accent-indigo-400 w-4 h-4 cursor-pointer">
+        </div>
+
+        <p class="text-[10px] text-slate-300 leading-snug">
+          Matrices HDF5 reales <code class="text-indigo-300 font-mono">science/LSAR/GCOV/HHHH</code> (20m&times;20m, filtro mediana 3&times;3) alineadas en UTM 18S sobre <strong>Majes-Camaná</strong>:
+          <code class="text-rose-300 font-mono">&Delta;dB &lt; -3.5 dB</code> (Agua nueva espejo: <strong>158.72 ha</strong>) y <code class="text-cyan-300 font-mono">&Delta;dB &gt; +3.5 dB</code> (Doble rebote L-Band en llanura inundada: <strong>618.88 ha</strong>).
+        </p>
+
+        <div class="space-y-1 text-[10px] font-mono">
+          <span class="text-slate-400 block">Capa Raster NISAR GCOV (350&times;350 px):</span>
+          <select id="nisar-colab-mode" onchange="renderNisarColabLayer()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-cyan-300 focus:outline-none">
+            <option value="water_mask" selected>🌊 Agua Nueva (-3.5 dB) + Llanura Inundada (+3.5 dB)</option>
+            <option value="delta_db">📊 Mapa Diferencial Puro ΔdB (Crecida - Estiaje)</option>
+            <option value="crecida">🌧️ Crecida 19-Ene-2026 (GCOV_010_147_A HHHH)</option>
+            <option value="estiaje">☀️ Estiaje 04-Sep-2026 (GCOV_029_147_A HHHH)</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-1.5 pt-0.5">
+          <button onclick="flyToNisarColabZone()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-2 rounded-lg text-[10px] transition flex items-center justify-center gap-1 shadow">
+            <span>🎯</span> Volar a Recorte NISAR
+          </button>
+          <button onclick="openNisarColabModal()" class="bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40 font-bold py-1.5 px-2 rounded-lg text-[10px] transition flex items-center justify-center gap-1">
+            <span>🔬</span> Ver 3 Matrices Colab
+          </button>
+        </div>
+      </div>
+
       <!-- 1. MOTOR DE DETECCIÓN DE RÍOS EN BASE A DATOS SAR -->
       <div class="bg-gradient-to-br from-cyan-950/50 via-slate-900 to-slate-900 border border-cyan-500/40 rounded-xl p-3 shadow-lg space-y-2">
         <div class="flex items-center justify-between">
@@ -362,6 +396,42 @@
 
     </div>
   </main>
+
+  <!-- Modal: Comparación Multitemporal de las 3 Matrices del Google Colab (NISAR L2 GCOV) -->
+  <div id="nisar-colab-modal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-6">
+    <div class="bg-slate-900 border border-cyan-500/50 rounded-2xl max-w-6xl w-full p-4 shadow-2xl space-y-3">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+        <div>
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <span>🛰️</span> Análisis Polarimétrico Multitemporal NISAR L2 GCOV (Extraído del Google Colab)
+          </h3>
+          <p class="text-xs text-slate-400 font-mono">
+            Valle Majes-Camaná (lon=-72.725, lat=-16.565, EPSG:32718) · Estiaje (04-Sep-2026) vs Crecida (19-Ene-2026) · Expansión Cauce: 158.72 ha | Llanura Inundada: 618.88 ha
+          </p>
+        </div>
+        <button onclick="closeNisarColabModal()" class="bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white px-3 py-1 rounded-lg text-xs font-bold transition">
+          ✕ Cerrar
+        </button>
+      </div>
+      <div class="bg-white rounded-xl p-2 overflow-hidden">
+        <img src="assets/comparacion_rio_nisar.png" alt="Comparación NISAR GCOV Colab" class="w-full h-auto rounded">
+      </div>
+      <div class="grid grid-cols-3 gap-3 text-xs font-mono">
+        <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+          <span class="text-slate-400 block">1. Fórmula Decibelios + Filtro Speckle:</span>
+          <code class="text-emerald-300">hh_db = 10 * log10(median_filter(HHHH, 3x3))</code>
+        </div>
+        <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+          <span class="text-rose-400 block">2. Agua Abierta Nueva (158.72 ha):</span>
+          <code class="text-white">ΔdB = db_crecida - db_estiaje &lt; -3.5 dB</code> (Reflexión especular espejo)
+        </div>
+        <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+          <span class="text-cyan-400 block">3. Llanura Inundada (618.88 ha):</span>
+          <code class="text-white">ΔdB = db_crecida - db_estiaje &gt; +3.5 dB</code> (Doble rebote Banda L en cultivos)
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
