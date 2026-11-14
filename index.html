@@ -88,6 +88,48 @@
     <!-- Left Sidebar: Controls, SAR Detector & Telemetry -->
     <aside class="w-96 bg-slate-900/95 border-r border-slate-800 flex flex-col p-3.5 overflow-y-auto space-y-3.5 z-20 text-sm flex-shrink-0">
       
+      <!-- 0. MOTOR MATEMÁTICO PURO AB-INITIO (D8 + PROFUNDIDAD DEM + OTSU SAR - SIN DATOS PREEXISTENTES) -->
+      <div class="bg-gradient-to-br from-emerald-950/60 via-slate-900 to-cyan-950/40 border-2 border-emerald-500/50 rounded-xl p-3 shadow-xl space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="text-[11px] font-mono font-bold tracking-wider text-emerald-300 flex items-center gap-1.5 cursor-pointer">
+            <span>🧮</span> MOTOR MATEMÁTICO (D8 + PROFUNDIDAD + OTSU)
+          </label>
+          <input type="checkbox" id="toggle-math-engine" onchange="toggleMathRiverEngine()" class="accent-emerald-400 w-4 h-4 cursor-pointer">
+        </div>
+
+        <p class="text-[10px] text-slate-300 leading-snug">
+          Extrae los ríos <strong>100% por cálculo matemático desde cero</strong> (sin usar mapas de ríos preexistentes): decodifica la profundidad topográfica <code class="text-emerald-300 font-mono">Z(x,y)</code>, ejecuta enrutamiento gravitacional <strong>D8</strong>, índice <strong>HAND/TWI</strong> y umbralización bimodal de <strong>Otsu</strong> (con Microservicio Python NumPy en <code class="text-cyan-300">:8050</code>).
+        </p>
+
+        <div class="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
+          <div>
+            <span class="text-slate-400 block mb-0.5">Potencia CPU / Malla:</span>
+            <select id="math-res-select" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-emerald-300 focus:outline-none">
+              <option value="standard">⚡ 360×360 (130k nodos)</option>
+              <option value="high" selected>🚀 540×540 (291k nodos)</option>
+              <option value="ultra">🔥 768×768 (590k CPU a Mil)</option>
+            </select>
+          </div>
+          <div>
+            <span class="text-slate-400 block mb-0.5">Sensibilidad Thalweg:</span>
+            <input type="range" id="math-sens-slider" min="0.6" max="1.6" step="0.1" value="1.1" class="w-full accent-emerald-400 mt-1 cursor-pointer">
+          </div>
+        </div>
+
+        <label class="flex items-center gap-2 text-[10px] text-amber-200 cursor-pointer bg-slate-950/70 px-2 py-1 rounded border border-slate-800">
+          <input type="checkbox" id="math-hide-preexisting" checked class="accent-amber-400 w-3.5 h-3.5">
+          <span>Ocultar ríos preexistentes (Ver 100% cálculo puro)</span>
+        </label>
+
+        <button onclick="document.getElementById('toggle-math-engine').checked = true; toggleMathRiverEngine();" class="w-full bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold py-1.5 px-2.5 rounded-lg text-xs transition shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5">
+          <span>🔥</span> <span id="btn-math-engine-text">Calcular Ríos por Profundidad y SAR (CPU)</span>
+        </button>
+
+        <div id="math-engine-status" class="bg-slate-950/90 p-2 rounded border border-slate-800 text-[10px] font-mono text-slate-400">
+          Pulsa el botón para extraer los ríos matemáticamente en la vista actual.
+        </div>
+      </div>
+
       <!-- 1. MOTOR DE DETECCIÓN DE RÍOS EN BASE A DATOS SAR -->
       <div class="bg-gradient-to-br from-cyan-950/50 via-slate-900 to-slate-900 border border-cyan-500/40 rounded-xl p-3 shadow-lg space-y-2">
         <div class="flex items-center justify-between">
@@ -325,6 +367,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <!-- Data & Logic -->
   <script src="js/arequipa-data.js"></script>
+  <script src="js/sar-math-engine.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

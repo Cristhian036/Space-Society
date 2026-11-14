@@ -235,6 +235,9 @@ function selectOrbitalCycle(index) {
   renderTimelineControls();
   renderBackscatterChart();
   updateAllVisuals(false);
+  if (typeof isMathEngineActive !== 'undefined' && isMathEngineActive) {
+    runMathematicalRiverExtraction();
+  }
 }
 
 function togglePlayCycles() {
