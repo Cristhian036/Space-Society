@@ -279,6 +279,133 @@ def strahler(order, rec, stream):
     return so, nup
 
 
+@njit(cache=True)
+def dijkstra_riverbed_path(cost_grid, r_start, c_start, r_end, c_end):
+    """
+    Rastreador de Camino de Mínimo Costo (Dijkstra 8-conectado compilado en Numba)
+    para ajustar segmentos de ríos directamente al canal activo de agua oscura / lecho aluvial (Thalweg).
+    """
+    h, w = cost_grid.shape
+    n = h * w
+    start_idx = r_start * w + c_start
+    end_idx = r_end * w + c_end
+
+    dist = np.full(n, 1e18, dtype=np.float64)
+    parent = np.full(n, -1, dtype=np.int64)
+    visited = np.zeros(n, dtype=np.bool_)
+
+    hv = np.empty(n, dtype=np.float64)
+    hi = np.empty(n, dtype=np.int64)
+    size = 0
+
+    dist[start_idx] = 0.0
+    hv[0] = 0.0
+    hi[0] = start_idx
+    size = 1
+
+    while size > 0:
+        cv = hv[0]
+        ci = hi[0]
+        size -= 1
+        hv[0] = hv[size]
+        hi[0] = hi[size]
+        k = 0
+        while True:
+            l = 2 * k + 1
+            if l >= size:
+                break
+            r = l + 1
+            m = l
+            if r < size and hv[r] < hv[l]:
+                m = r
+            if hv[k] <= hv[m]:
+                break
+            tv = hv[m]; hv[m] = hv[k]; hv[k] = tv
+            ti = hi[m]; hi[m] = hi[k]; hi[k] = ti
+            k = m
+
+        if visited[ci]:
+            continue
+        visited[ci] = True
+        if ci == end_idx:
+            break
+
+        cy = ci // w
+        cx = ci - cy * w
+        for d in range(8):
+            ny = cy + DY8[d]
+            nx = cx + DX8[d]
+            if ny < 0 or ny >= h or nx < 0 or nx >= w:
+                continue
+            nj = ny * w + nx
+            if visited[nj]:
+                continue
+            step_len = 1.41421356 if (DY8[d] != 0 and DX8[d] != 0) else 1.0
+            nd = cv + step_len * 0.5 * (cost_grid[cy, cx] + cost_grid[ny, nx])
+            if nd < dist[nj]:
+                dist[nj] = nd
+                parent[nj] = ci
+                k = size
+                hv[k] = nd
+                hi[k] = nj
+                size += 1
+                while k > 0:
+                    p = (k - 1) // 2
+                    if hv[p] <= hv[k]:
+                        break
+                    tv = hv[p]; hv[p] = hv[k]; hv[k] = tv
+                    ti = hi[p]; hi[p] = hi[k]; hi[k] = ti
+                    k = p
+
+    path = []
+    curr = end_idx
+    while curr != -1:
+        path.append(curr)
+        if curr == start_idx:
+            break
+        curr = parent[curr]
+    return np.array(path[::-1], dtype=np.int64)
+
+
+def build_highres_water_channel_cost(dem_z, img_rgb):
+    """
+    Superficie de costo Hidro-Espectral + Topográfica (TPI) para alinear ríos al canal activo de agua
+    o lecho aluvial gris-azulado y rechazar riberas secas, sombras de cerros y estadios.
+    """
+    R = np.nan_to_num(img_rgb[..., 0], nan=128.0)
+    G = np.nan_to_num(img_rgb[..., 1], nan=128.0)
+    B = np.nan_to_num(img_rgb[..., 2], nan=128.0)
+
+    lum = (R + G + B) / 3.0
+    loc_lum = ndi.uniform_filter(lum, size=35)
+    ndrb = (R - B) / (R + B + 2.0)
+    low_red = np.clip((0.115 - ndrb) / 0.085, 0.0, 1.0)
+
+    dark_water = (
+        np.clip((loc_lum - lum) / (loc_lum + 8.0), 0.0, 1.0)
+        * np.clip((125.0 - lum) / 55.0, 0.0, 1.0)
+        * np.clip((0.125 - ndrb) / 0.075, 0.0, 1.0)
+    )
+
+    ndgr = (G - R) / (G + R + 2.0)
+    is_bright_grass = (ndgr > 0.05) & (lum > 90.0)
+
+    tpi = dem_z - ndi.uniform_filter(dem_z, size=19)
+    valley_mask = np.clip((2.2 - tpi) / 4.5, 0.05, 1.0)
+
+    channel_score = np.maximum(dark_water, 0.92 * low_red) * valley_mask
+    channel_score = np.where(is_bright_grass, 0.0, channel_score)
+    channel_score = ndi.gaussian_filter(channel_score, sigma=1.0)
+
+    cost = (
+        0.25
+        + 55.0 * (1.0 - np.clip(channel_score * 2.3, 0.0, 1.0)) ** 2
+        + 2.5 * np.maximum(0.0, tpi + 1.0)
+        + 48.0 * np.maximum(0.0, ndrb - 0.105)
+    )
+    return channel_score.astype(np.float32), np.maximum(0.25, cost).astype(np.float64)
+
+
 # ----------------------------------------------------------------------------
 # Geometria de polilineas
 # ----------------------------------------------------------------------------
