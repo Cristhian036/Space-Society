@@ -386,11 +386,11 @@ function updateAllVisuals(flyToBasin = false) {
   let detectedRiverCount = 0;
   let totalDetectedVertices = 0;
 
-  // Factor de expansión según el ciclo de 12 días
-  const expFactor = Math.max(1.4, cycle.waterExpansionFactor);
-  const outerW = Math.max(4.5, Math.round(expFactor * 6.5 * zScale));
-  const midW = Math.max(3.0, Math.round(expFactor * 4.2 * zScale));
-  const coreW = Math.max(1.8, Math.round(expFactor * 2.2 * zScale));
+  // Líneas finas y nítidas moduladas sutilmente por el ciclo de 12 días
+  const expFactor = 1.0 + cycle.floodIntensity * 0.45;
+  const outerW = Math.min(4.2, Math.max(2.2, +(expFactor * 2.4 * zScale).toFixed(1)));
+  const midW = Math.min(2.6, Math.max(1.4, +(expFactor * 1.6 * zScale).toFixed(1)));
+  const coreW = Math.min(1.4, Math.max(0.9, +(expFactor * 0.9 * zScale).toFixed(1)));
 
   // 2. PROCESAR LAS 4 CUENCAS DETALLADAS DE AREQUIPA (7,334 Puntos GPS)
   Object.keys(BASINS).forEach(bKey => {

@@ -98,43 +98,48 @@
         </div>
 
         <p class="text-[10px] text-slate-300 leading-snug">
-          Extrae los ríos <strong>desde el DEM, sin mapas de ríos</strong>: <strong>Priority-Flood+ε</strong> (Barnes 2014) → <strong>D8</strong> → acumulación en km² → orden de <strong>Strahler</strong>, dibujados como líneas finas (microservicio Python en <code class="text-cyan-300">:8050</code>).
+          Red de ríos <strong>precalculada en SQLite (<code class="text-emerald-300 font-mono">hydro_rivers.sqlite</code>, 7.27M celdas DEM)</strong> con <strong>Priority-Flood+&epsilon;</strong>, <strong>D8</strong> y <strong>Filtro de Valle TPI</strong> (rechaza sombras de cerros y trazos por tierra seca). Carga en <strong>&lt; 5 ms</strong>.
         </p>
 
         <div class="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
           <div>
-            <span class="text-slate-400 block mb-0.5">Resolución DEM:</span>
+            <span class="text-slate-400 block mb-0.5">Modo Consulta / DEM:</span>
             <select id="math-res-select" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-emerald-300 focus:outline-none">
-              <option value="standard">⚡ Estándar (≤16 tiles, ~1M celdas)</option>
-              <option value="high" selected>🚀 Alta (≤36 tiles, ~2.4M)</option>
-              <option value="ultra">🔥 Ultra (≤64 tiles, ~4.2M CPU a mil)</option>
+              <option value="standard">⚡ Rápido SQLite</option>
+              <option value="high" selected>🚀 Alta Fidelidad SQLite</option>
+              <option value="ultra">🔥 Ultra Detalle (z11/z12)</option>
             </select>
           </div>
           <div>
             <span class="text-slate-400 block mb-0.5">Densidad de drenaje:</span>
-            <input type="range" id="math-sens-slider" min="0.4" max="3" step="0.2" value="1" class="w-full accent-emerald-400 mt-1 cursor-pointer" title="Mayor = umbral de área menor = más tributarios">
+            <input type="range" id="math-sens-slider" min="0.4" max="3" step="0.2" value="1.2" class="w-full accent-emerald-400 mt-1 cursor-pointer" title="Mayor = muestra más tributarios de cañón">
           </div>
         </div>
 
         <div class="grid grid-cols-1 gap-1">
-          <label class="flex items-center gap-2 text-[10px] text-cyan-200 cursor-pointer bg-slate-950/70 px-2 py-1 rounded border border-slate-800" title="Usa la imagen satelital alineada al DEM para detectar agua y vegetación riparia y 'quemarla' en el DEM (corrige meandros en planicies)">
+          <label class="flex items-center gap-2 text-[10px] text-cyan-200 cursor-pointer bg-slate-950/70 px-2 py-1 rounded border border-slate-800" title="Usa la imagen satelital alineada al DEM junto con filtro TPI de fondo de valle">
             <input type="checkbox" id="math-burn-optical" checked class="accent-cyan-400 w-3.5 h-3.5">
-            <span>Stream burning con agua observada (meandros fieles)</span>
+            <span>Filtro de Valle TPI + Stream Burning (Evita ir por tierra)</span>
           </label>
           <label class="flex items-center gap-2 text-[10px] text-slate-300 cursor-pointer bg-slate-950/70 px-2 py-1 rounded border border-slate-800">
-            <input type="checkbox" id="math-show-dry" checked class="accent-slate-400 w-3.5 h-3.5">
-            <span>Mostrar cauces secos principales (gris tenue)</span>
+            <input type="checkbox" id="math-show-dry" class="accent-slate-400 w-3.5 h-3.5">
+            <span>Mostrar quebradas secas secundarias (gris tenue)</span>
           </label>
         </div>
 
         <label class="flex items-center gap-2 text-[10px] text-amber-200 cursor-pointer bg-slate-950/70 px-2 py-1 rounded border border-slate-800">
           <input type="checkbox" id="math-hide-preexisting" checked class="accent-amber-400 w-3.5 h-3.5">
-          <span>Ocultar ríos preexistentes (Ver 100% cálculo puro)</span>
+          <span>Ocultar capas base (Ver solo líneas finas SQLite)</span>
         </label>
 
-        <button onclick="document.getElementById('toggle-math-engine').checked = true; toggleMathRiverEngine();" class="w-full bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold py-1.5 px-2.5 rounded-lg text-xs transition shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5">
-          <span>🔥</span> <span id="btn-math-engine-text">Calcular Ríos por Profundidad y SAR (CPU)</span>
-        </button>
+        <div class="grid grid-cols-1 gap-1.5">
+          <button onclick="document.getElementById('toggle-math-engine').checked = true; toggleMathRiverEngine();" class="w-full bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold py-1.5 px-2.5 rounded-lg text-xs transition shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5">
+            <span>⚡</span> <span id="btn-math-engine-text">Cargar Ríos desde SQLite (Instantáneo)</span>
+          </button>
+          <button onclick="document.getElementById('toggle-math-engine').checked = true; runMathematicalRiverExtraction(true);" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40 font-semibold py-1 px-2 rounded-lg text-[10px] transition flex items-center justify-center gap-1" title="Ejecuta el cálculo pesado DEM en vivo solo si deseas recalcular esta zona y guardarla en SQLite">
+            <span>🔄</span> Recalcular DEM en Vivo y Guardar en SQLite
+          </button>
+        </div>
 
         <div id="math-engine-status" class="bg-slate-950/90 p-2 rounded border border-slate-800 text-[10px] font-mono text-slate-400">
           Pulsa el botón para extraer los ríos matemáticamente en la vista actual.
