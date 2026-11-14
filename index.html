@@ -30,7 +30,7 @@
             SPACE SOCIETY <span class="text-xs bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full font-mono">NISAR / SAR RADAR</span>
           </h1>
         </div>
-        <p class="text-xs text-slate-400">Sistema de Alerta Temprana de Inundaciones - Cuencas de Arequipa</p>
+        <p class="text-xs text-slate-400">Sistema de Alerta Temprana de Inundaciones - Cuencas de Arequipa (ANA / NASA)</p>
       </div>
     </div>
 
@@ -55,7 +55,7 @@
     <div class="flex items-center space-x-3 text-xs">
       <div class="flex items-center gap-2 bg-emerald-950/60 border border-emerald-600/50 text-emerald-400 px-3 py-1.5 rounded-full font-mono">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        STREAMING NASA GIBS ACTIVO
+        STREAMING SATELITAL ACTIVO
       </div>
       <div class="font-mono text-slate-400" id="clock">--:--:-- UTC</div>
     </div>
@@ -68,8 +68,8 @@
     <aside class="w-96 bg-slate-900/95 border-r border-slate-800 flex flex-col p-4 overflow-y-auto space-y-5 z-20 text-sm flex-shrink-0">
       
       <!-- Early Warning Card -->
-      <div class="bg-gradient-to-br from-amber-950/40 to-slate-900 border border-amber-500/30 rounded-xl p-4 shadow-lg">
-        <div class="flex items-center justify-between mb-2">
+      <div class="bg-gradient-to-br from-amber-950/40 to-slate-900 border border-amber-500/30 rounded-xl p-4 shadow-lg space-y-2.5">
+        <div class="flex items-center justify-between">
           <span class="text-xs font-mono font-bold tracking-wider text-amber-400 flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full bg-amber-400"></span> ALERTA TEMPRANA PREDICCIÓN
           </span>
@@ -77,9 +77,27 @@
             RIESGO ALTO
           </span>
         </div>
-        <p class="text-xs text-slate-300 mb-3" id="risk-desc">
+
+        <div class="text-[11px] text-cyan-400 font-mono font-semibold" id="ana-code">
+          Cuenca Camaná-Majes (Código ANA: 13614)
+        </div>
+
+        <p class="text-xs text-slate-300" id="risk-desc">
           Lluvias torrenciales detectadas en la alta cordillera (GPM/IMERG). Tiempo estimado de llegada del caudal máximo al valle: <strong>14 a 18 horas</strong>.
         </p>
+
+        <!-- Dynamic SAR vs Nominal River Comparison -->
+        <div class="bg-slate-950/90 p-2.5 rounded-lg border border-slate-800 space-y-1.5 text-xs font-mono">
+          <div class="flex justify-between items-center text-[11px]">
+            <span class="text-slate-400">Cauce Nominal (ANA):</span>
+            <span class="text-slate-200 font-bold" id="nominal-width">45 - 80 m</span>
+          </div>
+          <div class="flex justify-between items-center text-[11px]">
+            <span class="text-slate-400">Ancho Detectado SAR:</span>
+            <span class="text-cyan-400 font-bold" id="sar-width">220 - 350 m</span>
+          </div>
+        </div>
+
         <div class="grid grid-cols-2 gap-2 text-xs font-mono">
           <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
             <span class="text-slate-400 block text-[10px]">CULTIVOS EN RIESGO</span>
@@ -95,65 +113,63 @@
       <!-- Layer Controls -->
       <div class="space-y-3">
         <h3 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold flex items-center justify-between">
-          <span>Capas Satelitales (Streaming)</span>
-          <span class="text-[10px] text-cyan-400 lowercase">tile / wmts</span>
+          <span>Capas Satelitales & Red Hidrográfica</span>
+          <span class="text-[10px] text-cyan-400 lowercase">streaming</span>
         </h3>
 
-        <!-- Basemap Selector (100% Free / No API Key) -->
+        <!-- Basemap Selector -->
         <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 space-y-2">
           <label class="text-xs font-medium text-slate-200 block">
-            🗺️ Mapa Base (Libre sin API Key):
+            🗺️ Mapa Base:
           </label>
           <select id="basemap-selector" class="w-full bg-slate-900 border border-slate-700 text-xs rounded px-2.5 py-2 text-slate-200 font-medium focus:border-cyan-500 focus:outline-none cursor-pointer">
-            <option value="esri_satellite" selected>🛰️ Esri Satelital (Alta Resolución)</option>
-            <option value="esri_dark">🌑 Esri Modo Oscuro (Dark Canvas)</option>
+            <option value="esri_satellite" selected>🛰️ Esri Satelital (Alta Resolución - Sin Key)</option>
+            <option value="esri_dark">🌑 Esri Modo Oscuro (Dark Canvas - Sin Key)</option>
+            <option value="carto_dark">🌑 CartoDB Dark (Vía Stadia Maps)</option>
             <option value="osm">🗺️ OpenStreetMap Estándar</option>
           </select>
+
+          <!-- Collapsible Carto API Key Box -->
+          <div id="carto-key-container" class="hidden pt-2 border-t border-slate-800 space-y-1">
+            <label class="text-[10px] text-slate-400 font-mono block">Stadia/Carto API Key (Opcional):</label>
+            <div class="flex gap-1.5">
+              <input type="password" id="carto-api-key" placeholder="Pega tu API Key..." class="flex-1 bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 font-mono focus:border-cyan-500 focus:outline-none">
+              <button id="btn-apply-key" class="bg-cyan-700 hover:bg-cyan-600 px-2 py-1 rounded text-xs font-medium text-white transition">Aplicar</button>
+            </div>
+            <p class="text-[10px] text-slate-400 pt-0.5">
+              Si no tienes key, usa el modo demo o regístrate gratis en <a href="https://client.stadiamaps.com/signup/" target="_blank" class="text-cyan-400 underline">stadiamaps.com</a>.
+            </p>
+          </div>
         </div>
 
-        <!-- NASA GIBS Base Layer Toggle -->
-        <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 space-y-2">
+        <!-- Official ANA / IGN River Network Layer Toggle -->
+        <div class="bg-slate-950/70 p-3 rounded-xl border border-sky-900/60 space-y-2">
           <label class="flex items-center justify-between text-xs cursor-pointer">
-            <span class="font-medium text-slate-200">NASA GIBS Óptico (VIIRS)</span>
-            <input type="checkbox" id="layer-gibs" class="accent-cyan-500 w-4 h-4 cursor-pointer">
+            <span class="font-medium text-sky-300 flex items-center gap-1.5">
+              <span>💧</span> Red Hidrográfica ANA / IGN (Eje Oficial)
+            </span>
+            <input type="checkbox" id="layer-river" checked class="accent-sky-500 w-4 h-4 cursor-pointer">
           </label>
           <p class="text-[11px] text-slate-400">
-            Streaming en tiempo real desde servidores NASA GIBS (True Color).
+            Geometría vectorial del cauce nominal y fajas marginales (GeoSNIRH - ANA Perú).
           </p>
-          <div class="flex items-center gap-2 pt-1">
-            <label class="text-[10px] font-mono text-slate-400">Fecha:</label>
-            <input type="date" id="date-picker" value="2024-02-15" class="bg-slate-900 border border-slate-700 text-xs rounded px-2 py-0.5 text-slate-200 font-mono">
-          </div>
         </div>
 
         <!-- Radar SAR Water Layer -->
         <div class="bg-slate-950/70 p-3 rounded-xl border border-cyan-900/60 space-y-2">
           <label class="flex items-center justify-between text-xs cursor-pointer">
             <span class="font-medium text-cyan-300 flex items-center gap-1.5">
-              <span>📡</span> Radar SAR (Banda L / C)
+              <span>📡</span> Detección SAR de Agua en Tiempo Real
             </span>
-            <input type="checkbox" id="layer-sar" checked class="accent-cyan-500 w-4 h-4 cursor-pointer">
+            <input type="checkbox" id="layer-flood" checked class="accent-cyan-500 w-4 h-4 cursor-pointer">
           </label>
           <p class="text-[11px] text-slate-400">
-            Retrodispersión radar (&sigma;<sup>0</sup>). Destaca agua por baja reflexión especular (zonas oscuras).
+            Firma radar (&sigma;<sup>0</sup> &lt; -16 dB). Identifica la mancha real de agua expandida más allá del cauce oficial.
           </p>
           <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-            <span>Opacidad SAR:</span>
+            <span>Opacidad Detección:</span>
             <input type="range" id="sar-opacity" min="0" max="100" value="85" class="accent-cyan-500 w-28">
           </div>
-        </div>
-
-        <!-- Inundación Detectada Mask -->
-        <div class="bg-slate-950/70 p-3 rounded-xl border border-blue-900/60 space-y-2">
-          <label class="flex items-center justify-between text-xs cursor-pointer">
-            <span class="font-medium text-blue-300 flex items-center gap-1.5">
-              <span>💧</span> Máscara de Desborde Detectada
-            </span>
-            <input type="checkbox" id="layer-flood" checked class="accent-blue-500 w-4 h-4 cursor-pointer">
-          </label>
-          <p class="text-[11px] text-slate-400">
-            Diferencia temporal &Delta;&sigma;<sup>0</sup> &lt; -15 dB (Agua anómala sobre llanura de inundación).
-          </p>
         </div>
 
         <!-- SIGRID / CENEPRED Vulnerabilidad -->
@@ -168,15 +184,30 @@
             Zonas de susceptibilidad muy alta ante inundación fluvial y defensas ribereñas.
           </p>
         </div>
+
+        <!-- NASA GIBS Base Layer Toggle -->
+        <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 space-y-2">
+          <label class="flex items-center justify-between text-xs cursor-pointer">
+            <span class="font-medium text-slate-200">NASA GIBS Óptico (VIIRS)</span>
+            <input type="checkbox" id="layer-gibs" class="accent-cyan-500 w-4 h-4 cursor-pointer">
+          </label>
+          <p class="text-[11px] text-slate-400">
+            Mosaico diario global de reflectancia corregida de la NASA.
+          </p>
+          <div class="flex items-center gap-2 pt-1">
+            <label class="text-[10px] font-mono text-slate-400">Fecha:</label>
+            <input type="date" id="date-picker" value="2024-02-15" class="bg-slate-900 border border-slate-700 text-xs rounded px-2 py-0.5 text-slate-200 font-mono">
+          </div>
+        </div>
       </div>
 
       <!-- Science & NISAR Note -->
       <div class="bg-blue-950/30 border border-blue-800/40 rounded-xl p-3 text-xs space-y-1.5">
         <div class="font-bold text-cyan-300 flex items-center gap-1">
-          <span>💡</span> ¿Por qué NISAR Banda L?
+          <span>💡</span> Eje Nominal ANA vs Detección SAR
         </div>
         <p class="text-slate-300 text-[11px] leading-relaxed">
-          La <strong>Banda L (~24 cm)</strong> penetra los cultivos densos de arroz y cebolla en el valle de Camaná. Mientras la cámara óptica ve hojas verdes, el radar detecta el agua subterránea o anegada debajo del follaje por doble rebote.
+          Los mapas de ríos tradicionales solo muestran una línea delgada fija. En temporada de lluvias, el <strong>Radar SAR NISAR</strong> detecta el desborde y la expansión lateral hacia los cultivos con su <strong>Banda L (~24 cm)</strong> que atraviesa la vegetación densa.
         </p>
       </div>
 
@@ -195,10 +226,14 @@
 
       <!-- On-Map Floating Legend -->
       <div class="absolute bottom-6 right-6 z-20 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-3 shadow-2xl text-xs space-y-2 font-mono">
-        <div class="font-bold text-slate-300 text-[11px] border-b border-slate-800 pb-1">LEYENDA SAR / RIESGO</div>
+        <div class="font-bold text-slate-300 text-[11px] border-b border-slate-800 pb-1">LEYENDA HIDROLÓGICA & SAR</div>
         <div class="flex items-center gap-2">
-          <span class="w-3.5 h-3.5 rounded bg-blue-500/80 border border-blue-300"></span>
-          <span class="text-slate-300">Desborde / Agua Detectada</span>
+          <span class="w-4 h-1 rounded bg-sky-400 border border-sky-200"></span>
+          <span class="text-slate-300">Cauce Nominal Oficial (ANA / IGN)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-3.5 h-3.5 rounded bg-cyan-500/80 border border-cyan-300"></span>
+          <span class="text-slate-300">Agua Detectada por Radar (NISAR/SAR)</span>
         </div>
         <div class="flex items-center gap-2">
           <span class="w-3.5 h-3.5 rounded bg-rose-600/70 border border-rose-400"></span>
@@ -206,11 +241,7 @@
         </div>
         <div class="flex items-center gap-2">
           <span class="w-3.5 h-3.5 rounded bg-amber-500/60 border border-amber-400"></span>
-          <span class="text-slate-300">Cultivos Agrícolas Expuestos</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="w-3.5 h-3.5 rounded bg-emerald-500/40 border border-emerald-400"></span>
-          <span class="text-slate-300">Cauce Habitual del Río</span>
+          <span class="text-slate-300">Cultivos Agrícolas Anegados</span>
         </div>
       </div>
 

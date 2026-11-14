@@ -4,35 +4,47 @@ let currentBasin = 'camana';
 let currentBasemapKey = 'esri_satellite';
 let activeBasemapLayer;
 let gibsLayer;
-let sarLayerGroup;
 let floodLayerGroup;
 let sigridLayerGroup;
 let riverLayerGroup;
 
-// 100% Free Basemaps (No API Key Required)
-const BASEMAP_TILES = {
-  esri_satellite: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    options: {
-      attribution: 'Tiles &copy; Esri &mdash; Earthstar Geographics',
-      maxZoom: 19
+// Basemaps definition
+function getBasemapConfig(key) {
+  const savedKey = localStorage.getItem('carto_api_key') || '';
+  const configs = {
+    esri_satellite: {
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      options: {
+        attribution: 'Tiles &copy; Esri &mdash; Earthstar Geographics',
+        maxZoom: 19
+      }
+    },
+    esri_dark: {
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      options: {
+        attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+        maxZoom: 16
+      }
+    },
+    carto_dark: {
+      url: savedKey 
+        ? `https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png?api_key=${savedKey}`
+        : 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      options: {
+        attribution: '&copy; Stadia Maps &copy; OpenMapTiles &copy; OpenStreetMap contributors',
+        maxZoom: 19
+      }
+    },
+    osm: {
+      url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      options: {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+      }
     }
-  },
-  esri_dark: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-    options: {
-      attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
-      maxZoom: 16
-    }
-  },
-  osm: {
-    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    options: {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19
-    }
-  }
-};
+  };
+  return configs[key];
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   initMap();
@@ -40,17 +52,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   loadBasinData('camana');
 
-  // Trigger resize recalculation to guarantee Leaflet paints all tiles
+  // Trigger resize recalculation
   setTimeout(() => {
-    if (map) {
-      map.invalidateSize();
-    }
+    if (map) map.invalidateSize();
   }, 200);
 
   window.addEventListener('resize', () => {
-    if (map) {
-      map.invalidateSize();
-    }
+    if (map) map.invalidateSize();
   });
 });
 
@@ -59,7 +67,6 @@ function initMap() {
   const initial = BASINS.camana;
   
   // Layer Groups
-  sarLayerGroup = L.layerGroup();
   floodLayerGroup = L.layerGroup();
   sigridLayerGroup = L.layerGroup();
   riverLayerGroup = L.layerGroup();
@@ -74,17 +81,16 @@ function initMap() {
   // Zoom control top-left
   L.control.zoom({ position: 'topleft' }).addTo(map);
 
-  // Set default basemap: Esri World Imagery (High-res Satellite, No API Key)
+  // Set default basemap: Esri World Imagery
   switchBasemap('esri_satellite');
 
   // Streaming Layer 2: NASA GIBS VIIRS True Color
   updateGibsLayer('2024-02-15');
 
   // Add Layer Groups to map
-  sarLayerGroup.addTo(map);
+  riverLayerGroup.addTo(map);
   floodLayerGroup.addTo(map);
   sigridLayerGroup.addTo(map);
-  riverLayerGroup.addTo(map);
 
   // Map mousemove for coordinates HUD
   map.on('mousemove', (e) => {
@@ -97,7 +103,7 @@ function initMap() {
 
 // Switch Basemap dynamically
 function switchBasemap(key) {
-  const config = BASEMAP_TILES[key];
+  const config = getBasemapConfig(key);
   if (!config) return;
 
   if (activeBasemapLayer && map.hasLayer(activeBasemapLayer)) {
@@ -125,8 +131,8 @@ function updateGibsLayer(dateStr) {
 
   gibsLayer = L.tileLayer(gibsUrl, {
     attribution: '&copy; NASA EOSDIS GIBS',
-    maxNativeZoom: 9, // Native max zoom from NASA GIBS
-    maxZoom: 19,       // Allow stretching at deeper zoom levels
+    maxNativeZoom: 9,
+    maxZoom: 19,
     opacity: 0.70
   });
 
@@ -146,18 +152,25 @@ function loadBasinData(basinKey) {
   if (!basin || !map) return;
 
   // Clear previous vector layers
-  if (sarLayerGroup) sarLayerGroup.clearLayers();
   if (floodLayerGroup) floodLayerGroup.clearLayers();
   if (sigridLayerGroup) sigridLayerGroup.clearLayers();
   if (riverLayerGroup) riverLayerGroup.clearLayers();
 
-  // 1. Draw River Centerline
+  // 1. Draw River Centerline (Red Hidrográfica Oficial ANA / IGN)
   const riverPolyline = L.polyline(basin.riverPath, {
     color: '#38bdf8',
     weight: 4,
     opacity: 0.95,
     dashArray: '6, 6'
-  }).bindPopup(`<strong>Cauce Principal</strong><br>${basin.name}`);
+  }).bindPopup(`
+    <div class="text-xs space-y-1">
+      <span class="text-sky-400 font-bold block">💧 CAUCE NOMINAL OFICIAL</span>
+      <strong>Río:</strong> ${basin.name}<br>
+      <strong>Código ANA:</strong> ${basin.anaCode}<br>
+      <strong>Ancho Promedio en Estiaje:</strong> <span class="font-mono text-cyan-300">${basin.nominalWidth}</span><br>
+      <p class="text-[10px] text-slate-400 mt-1">Fuente: Autoridad Nacional del Agua (ANA - GeoSNIRH) e Instituto Geográfico Nacional (IGN).</p>
+    </div>
+  `);
   riverLayerGroup.addLayer(riverPolyline);
 
   // 2. Draw SIGRID / CENEPRED Vulnerability Zones
@@ -178,7 +191,7 @@ function loadBasinData(basinKey) {
     sigridLayerGroup.addLayer(poly);
   });
 
-  // 3. Draw SAR Flood Detected Polygons (Radar thresholding simulation)
+  // 3. Draw SAR Flood Detected Polygons (Radar thresholding & flood extent)
   basin.floodPolygons.forEach(fp => {
     const floodPoly = L.polygon(fp.coordinates, {
       color: '#0284c7',
@@ -190,8 +203,9 @@ function loadBasinData(basinKey) {
         <span class="text-cyan-400 font-bold block">🛰️ AGUA DETECTADA POR RADAR SAR</span>
         <strong>Sector:</strong> ${fp.name}<br>
         <strong>Área Afectada:</strong> <span class="text-amber-400 font-bold">${fp.hectares} hectáreas</span><br>
-        <strong>Firma Radar:</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${fp.sarBackscatter}</code><br>
-        <p class="text-[10px] text-slate-300 mt-1">Superficie lisa reflectora: Alta constante dieléctrica del agua provoca reflexión especular hacia el exterior.</p>
+        <strong>Firma Radar (&sigma;<sup>0</sup>):</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${fp.sarBackscatter}</code><br>
+        <strong>Capacidad de Penetración:</strong> <span class="text-emerald-400 font-mono text-[11px]">${fp.penetrationType}</span><br>
+        <p class="text-[10px] text-slate-300 mt-1">Superficie lisa reflectora: La alta constante dieléctrica del agua provoca reflexión especular hacia el exterior.</p>
       </div>
     `);
     floodLayerGroup.addLayer(floodPoly);
@@ -200,6 +214,15 @@ function loadBasinData(basinKey) {
   // 4. Update HUD and Sidebar stats
   const basinNameEl = document.getElementById('active-basin-name');
   if (basinNameEl) basinNameEl.textContent = basin.name;
+
+  const anaCodeEl = document.getElementById('ana-code');
+  if (anaCodeEl) anaCodeEl.textContent = basin.anaCode;
+
+  const nominalWidthEl = document.getElementById('nominal-width');
+  if (nominalWidthEl) nominalWidthEl.textContent = basin.nominalWidth;
+
+  const sarWidthEl = document.getElementById('sar-width');
+  if (sarWidthEl) sarWidthEl.textContent = basin.sarExpandedWidth;
 
   const riskLevelEl = document.getElementById('risk-level');
   if (riskLevelEl) {
@@ -235,9 +258,46 @@ function zoomToBasin(basinKey) {
 function setupEventListeners() {
   // Basemap selector
   const basemapSelect = document.getElementById('basemap-selector');
+  const cartoKeyContainer = document.getElementById('carto-key-container');
+  const cartoApiKeyInput = document.getElementById('carto-api-key');
+  const btnApplyKey = document.getElementById('btn-apply-key');
+
+  // Load saved key if any
+  const savedKey = localStorage.getItem('carto_api_key');
+  if (savedKey && cartoApiKeyInput) {
+    cartoApiKeyInput.value = savedKey;
+  }
+
   if (basemapSelect) {
     basemapSelect.addEventListener('change', (e) => {
-      switchBasemap(e.target.value);
+      const selected = e.target.value;
+      if (selected === 'carto_dark') {
+        if (cartoKeyContainer) cartoKeyContainer.classList.remove('hidden');
+      } else {
+        if (cartoKeyContainer) cartoKeyContainer.classList.add('hidden');
+      }
+      switchBasemap(selected);
+    });
+  }
+
+  if (btnApplyKey && cartoApiKeyInput) {
+    btnApplyKey.addEventListener('click', () => {
+      const key = cartoApiKeyInput.value.trim();
+      localStorage.setItem('carto_api_key', key);
+      switchBasemap('carto_dark');
+      alert(key ? 'API Key aplicada a CartoDB/Stadia Maps.' : 'API Key limpiada.');
+    });
+  }
+
+  // Official River Layer toggle
+  const riverCheckbox = document.getElementById('layer-river');
+  if (riverCheckbox) {
+    riverCheckbox.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        map.addLayer(riverLayerGroup);
+      } else {
+        map.removeLayer(riverLayerGroup);
+      }
     });
   }
 
@@ -262,19 +322,7 @@ function setupEventListeners() {
     });
   }
 
-  // SAR layer toggle
-  const sarCheckbox = document.getElementById('layer-sar');
-  if (sarCheckbox) {
-    sarCheckbox.addEventListener('change', (e) => {
-      if (e.target.checked) {
-        map.addLayer(sarLayerGroup);
-      } else {
-        map.removeLayer(sarLayerGroup);
-      }
-    });
-  }
-
-  // Flood mask toggle
+  // Flood mask toggle (SAR)
   const floodCheckbox = document.getElementById('layer-flood');
   if (floodCheckbox) {
     floodCheckbox.addEventListener('change', (e) => {
