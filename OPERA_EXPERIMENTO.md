@@ -50,3 +50,10 @@ El siguiente experimento útil sería ampliar el contexto espacial y comprobar e
 - El script exige los HDF5 y datos auxiliares reales; no genera sustitutos si faltan.
 - `python opera_experiment.py --run` prepara y ejecuta el flujo; si termina correctamente exporta el diagnóstico. Los fallos quedan registrados y no se presentan como resultados válidos.
 - Verificación: 19 pruebas Python aprobadas, sintaxis JavaScript y comprobación de clases de los GeoTIFF generados.
+
+
+## Camaná
+
+También se ejecutó `python opera_experiment.py --region camana --run` con el HDF5 del 4 de septiembre y auxiliares recortados para esa zona. Salida independiente: `output/opera_camana`. Terminó con código 0 y produjo WTR/BWTR/CONF/DIAG.
+
+El WTR contiene 40.807 píxeles de clase 0, 636 de clase 3 (vegetación inundada según el clasificador), 14.719 de clase 250 (excluidos por HAND) y 7 NoData. No detectó agua abierta y el registro vuelve a informar umbrales vacíos; el resultado se marca no utilizable. Las manchas violetas no constituyen una validación de inundación. El visor elige automáticamente el diagnóstico de Camaná o Chili según la zona.

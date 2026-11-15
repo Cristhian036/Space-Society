@@ -22,6 +22,8 @@ REVISION = 'd9ae8ed5178417dec22a6fc549c4368cfd51ebe9'
 OUT = ROOT / 'output/opera_chili'
 GRID = '/science/LSAR/GCOV/grids/frequencyA'
 BBOX = (-71.555, -16.425, -71.515, -16.37)
+REGION='chili'
+CONTEXT=ROOT/'output/chili'
 
 
 def prepare():
@@ -30,7 +32,8 @@ def prepare():
     if revision != REVISION:
         raise ValueError('Upstream revision differs from the audited experiment')
     OUT.mkdir(parents=True, exist_ok=True)
-    original = next(Path(r'C:\Users\estro\Downloads\nasa').glob('*20260909*_P05023*.h5'))
+    pattern='*20260909*_P05023*.h5' if REGION=='chili' else '*20260904*_P05023*.h5'
+    original = next(Path(r'C:\Users\estro\Downloads\nasa').glob(pattern))
     cropped = OUT / original.name
     with h5py.File(original, 'r') as src, h5py.File(cropped, 'w') as dst:
         group = src[GRID]
@@ -54,7 +57,7 @@ def prepare():
             del ident['listOfFrequencies']
             ident['listOfFrequencies'] = np.array([b'A'])
     # Use the measured-terrain context already prepared for this same AOI.
-    with rasterio.open(ROOT/'output/chili/before_db.tif') as ref:
+    with rasterio.open(CONTEXT/'before_db.tif') as ref:
         shape, transform, crs = ref.shape, ref.transform, ref.crs
     z=12
     x0,x1=int(hydro.lon2tile_x(BBOX[0],z)),int(hydro.lon2tile_x(BBOX[2],z))
@@ -70,7 +73,7 @@ def prepare():
     # The upstream ancillary relocation assumes geographic coordinates when
     # checking the antimeridian; supply geographic ancillary rasters.
     geographic={}
-    for name,path in [('dem',dem_path),('hand',ROOT/'output/chili/terrain_hand.tif')]:
+    for name,path in [('dem',dem_path),('hand',CONTEXT/'terrain_hand.tif')]:
         with rasterio.open(path) as src:
             gt,width,height=calculate_default_transform(src.crs,'EPSG:4326',src.width,src.height,*src.bounds)
             data=np.full((height,width),np.nan,dtype=np.float32)
@@ -79,6 +82,25 @@ def prepare():
         dest=OUT/f'{name}_geographic.tif'
         gcov_water.write_tif(dest,data,gt,'EPSG:4326',np.nan)
         geographic[name]=dest
+    aux=ROOT/'.dem_cache'/('opera_ancillary' if REGION=='chili' else 'opera_ancillary_camana')
+    aux.mkdir(exist_ok=True)
+    if REGION=='camana':
+        from rasterio.windows import from_bounds as window_bounds
+        urls={
+          'worldcover':'https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map/ESA_WorldCover_10m_2021_v200_S18W075_Map.tif',
+          'reference_water':'https://storage.googleapis.com/global-surface-water/downloads2021/occurrence/occurrence_80W_10Sv1_4_2021.tif',
+          'glad':'https://storage.googleapis.com/earthenginepartners-hansen/GLCLU2000-2020/2020/10S_080W.tif'}
+        with rasterio.Env(GDAL_DISABLE_READDIR_ON_OPEN='EMPTY_DIR',GDAL_HTTP_TIMEOUT='30'):
+            for name,url in urls.items():
+                dest=aux/(name+'.tif')
+                if dest.exists(): continue
+                with rasterio.open(url) as source:
+                    bounds=transform_bounds('EPSG:4326',source.crs,BBOX[0]-.02,BBOX[1]-.02,BBOX[2]+.02,BBOX[3]+.02)
+                    win=window_bounds(*bounds,transform=source.transform).round_offsets().round_lengths()
+                    data=source.read(window=win);profile=source.profile
+                    profile.update(driver='GTiff',width=data.shape[2],height=data.shape[1],transform=source.window_transform(win))
+                    with rasterio.open(dest,'w',**profile) as target: target.write(data)
+                print('Downloaded',name,flush=True)
     cfg=yaml.safe_load((UPSTREAM/'src/dswx_sar/defaults/dswx_ni.yaml').read_text())
     groups=cfg['runconfig']['groups']
     groups['log_file']=str(OUT/'upstream.log')
@@ -86,9 +108,9 @@ def prepare():
     groups['input_file_group']['input_file_path']=[str(cropped)]
     ancillary=groups['dynamic_ancillary_file_group']
     for key,path in {'dem_file':geographic['dem'],'hand_file':geographic['hand'],
-                     'worldcover_file':ROOT/'.dem_cache/opera_ancillary/worldcover.tif',
-                     'glad_classification_file':ROOT/'.dem_cache/opera_ancillary/glad.tif',
-                     'reference_water_file':ROOT/'.dem_cache/opera_ancillary/reference_water.tif'}.items():
+                     'worldcover_file':aux/'worldcover.tif',
+                     'glad_classification_file':aux/'glad.tif',
+                     'reference_water_file':aux/'reference_water.tif'}.items():
         if not path.exists():
             raise FileNotFoundError(path)
         ancillary[key]=str(path)
@@ -106,7 +128,7 @@ def prepare():
     ancillary['algorithm_parameters']=str(algo_path)
     config_path=OUT/'runconfig.yaml';config_path.write_text(yaml.safe_dump(cfg),encoding='utf-8')
     (OUT/'provenance.json').write_text(json.dumps({'upstream_revision':revision,'original':str(original),
-        'bbox':BBOX,'input_crop':str(cropped),'dem':'Terrarium composite, native provenance not independently verified',
+        'region':REGION,'date':'2026-09-09' if REGION=='chili' else '2026-09-04','bbox':BBOX,'input_crop':str(cropped),'dem':'Terrarium composite, native provenance not independently verified',
         'hand':'local modeled HAND, experimental','worldcover':'ESA WorldCover 2021 v200',
         'reference_water':'JRC GSW occurrence 1984-2021 v1.4','status':'prepared_not_executed'},indent=2),encoding='utf-8')
     print(config_path)
@@ -115,7 +137,13 @@ def prepare():
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run',action='store_true')
+    parser.add_argument('--region',choices=['chili','camana'],default='chili')
     args=parser.parse_args()
+    REGION=args.region
+    if REGION=='camana':
+        OUT=ROOT/'output/opera_camana'
+        BBOX=(-72.7578,-16.59663,-72.6922,-16.53337)
+        CONTEXT=ROOT/'output/gcov'
     prepare()
     if args.run:
         # Recreate only derived ancillary rasters left by earlier incompatible
@@ -132,7 +160,7 @@ if __name__=='__main__':
         print('Upstream exit code:',result.returncode,'Log:',OUT/'execution.log')
         if result.returncode == 0:
             from opera_export import export
-            export()
+            export(OUT)
         else:
             provenance=json.loads((OUT/'provenance.json').read_text(encoding='utf-8'))
             provenance.update(status='execution_failed',exit_code=result.returncode)
