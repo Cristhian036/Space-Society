@@ -16,7 +16,7 @@
   <!-- Custom CSS -->
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="bg-slate-950 text-slate-100 h-screen w-screen flex flex-col font-sans overflow-hidden">
+<body class="app-shell bg-slate-950 text-slate-100 h-screen w-screen flex flex-col font-sans overflow-hidden">
 
   <!-- Filtro SVG para eliminar bordes negros de las imágenes JPG de NASA ASF y resaltar cauces -->
   <svg width="0" height="0" class="absolute pointer-events-none">
@@ -34,85 +34,141 @@
   </svg>
 
   <!-- Header / Navigation -->
-  <header class="bg-slate-900/95 backdrop-blur border-b border-cyan-900/40 px-4 py-2 flex items-center justify-between sticky top-0 z-50 flex-shrink-0">
-    <div class="flex items-center space-x-3">
-      <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-700 flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/20">
-        🛰️
-      </div>
-      <div>
-        <div class="flex items-center space-x-2">
-          <h1 class="text-sm font-bold tracking-tight text-white flex items-center gap-2">
-            SPACE SOCIETY <span class="text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full font-mono">NISAR / SENTINEL-1 PERÚ</span>
-          </h1>
+  <header class="app-header">
+    <div class="app-bar">
+      <div class="app-brand">
+        <div class="brand-symbol" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="10"/><ellipse cx="16" cy="16" rx="15" ry="5" transform="rotate(-40 16 16)"/><circle cx="25" cy="8" r="2" class="brand-satellite"/></svg>
         </div>
-        <p class="text-[11px] text-slate-400">Lectura Masiva de Bloques SAR y Detección Automática de Ríos en Todo el Perú</p>
+        <div class="brand-copy">
+          <h1>Space Society <span>NISAR / SENTINEL-1 PERÚ</span></h1>
+          <p>Lectura Masiva de Bloques SAR y Detección Automática de Ríos en Todo el Perú</p>
+        </div>
       </div>
-    </div>
-
-    <!-- Quick Basin & National Selectors -->
-    <div class="flex items-center gap-1 bg-slate-950/90 p-1 rounded-lg border border-slate-800 text-xs">
-      <button onclick="activateNationalPeruView()" class="basin-btn px-2.5 py-1.5 rounded transition font-bold text-emerald-300 border border-emerald-800/50 bg-emerald-950/30" id="btn-peru-all" title="Ver los 118 bloques SAR y las 33 cuencas hidrográficas de todo el Perú activas a la vez">
-        🇵🇪 Todo el Perú (118 SAR + 33 Ríos)
-      </button>
-      <span class="text-slate-700 px-0.5">|</span>
-      <button onclick="zoomToBasin('camana')" class="basin-btn active px-2 py-1.5 rounded transition font-medium" id="btn-camana">
-        🌾 Camaná-Majes
-      </button>
-      <button onclick="zoomToBasin('chili')" class="basin-btn px-2 py-1.5 rounded transition font-medium" id="btn-chili">
-        🏙️ Chili-Quilca
-      </button>
-      <button onclick="zoomToBasin('ocona')" class="basin-btn px-2 py-1.5 rounded transition font-medium" id="btn-ocona">
-        🏞️ Ocoña
-      </button>
-      <button onclick="zoomToBasin('tambo')" class="basin-btn px-2 py-1.5 rounded transition font-medium" id="btn-tambo">
-        🌊 Tambo
-      </button>
-      <button onclick="zoomToAllTracks()" class="basin-btn px-2 py-1.5 rounded transition font-medium text-cyan-300" id="btn-all-tracks">
-        🛰️ Bloques Sur
-      </button>
-    </div>
-
-    <!-- Live Status Pill -->
-    <div class="flex items-center space-x-2.5 text-xs">
-      <div class="flex items-center gap-1.5 bg-emerald-950/60 border border-emerald-600/50 text-emerald-400 px-2.5 py-1 rounded-full font-mono text-[10px]">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span id="header-active-stats">166 ESCENAS SAR · 33 RÍOS ACTIVOS</span>
+      <div class="header-status">
+        <div class="catalog-status"><span class="status-dot" aria-hidden="true"></span><span id="header-active-stats">166 ESCENAS SAR · 33 RÍOS ACTIVOS</span></div>
+        <time id="clock">--:--:-- UTC</time>
       </div>
-      <div class="font-mono text-slate-400 text-[11px]" id="clock">--:--:-- UTC</div>
+      <button id="controls-toggle" class="controls-toggle" type="button" aria-controls="workspace-controls" aria-expanded="true">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 17h16M8 4v6m8 4v6"/></svg>
+        <span id="controls-toggle-label">Ocultar panel</span>
+      </button>
     </div>
+    <nav class="basin-navigation" aria-label="Cuencas y cobertura">
+      <span class="navigation-label">Explorar cuenca</span>
+      <div class="basin-options">
+        <button onclick="activateNationalPeruView()" class="basin-btn national-basin" id="btn-peru-all" title="Ver los 118 bloques SAR y las 33 cuencas hidrográficas de todo el Perú activas a la vez">Todo el Perú <span>118 SAR · 33 ríos</span></button>
+        <button onclick="zoomToBasin('camana')" class="basin-btn active" id="btn-camana">Camaná-Majes</button>
+        <button onclick="zoomToBasin('chili')" class="basin-btn" id="btn-chili">Chili-Quilca</button>
+        <button onclick="zoomToBasin('ocona')" class="basin-btn" id="btn-ocona">Ocoña</button>
+        <button onclick="zoomToBasin('tambo')" class="basin-btn" id="btn-tambo">Tambo</button>
+        <button onclick="zoomToAllTracks()" class="basin-btn" id="btn-all-tracks">Bloques Sur</button>
+      </div>
+    </nav>
   </header>
 
   <!-- Main Workspace -->
-  <main class="flex-1 flex overflow-hidden relative w-full h-[calc(100vh-56px)]">
+  <main class="workspace flex-1 flex overflow-hidden relative w-full">
 
     <!-- Left Sidebar: Controls, SAR Detector & Telemetry -->
-    <aside class="w-96 bg-slate-900/95 border-r border-slate-800 flex flex-col p-3.5 overflow-y-auto space-y-3.5 z-20 text-sm flex-shrink-0">
-      
-      <!-- 0. MOTOR MATEMÁTICO PURO AB-INITIO (D8 + PROFUNDIDAD DEM + OTSU SAR - SIN DATOS PREEXISTENTES) -->
-      <div class="bg-gradient-to-br from-emerald-950/60 via-slate-900 to-cyan-950/40 border-2 border-emerald-500/50 rounded-xl p-3 shadow-xl space-y-2">
+    <aside id="workspace-controls" class="workspace-controls" aria-label="Panel de exploración">
+      <div class="panel-heading">
+        <div><h2>Exploración</h2><p>Capas, análisis y opciones del visor.</p></div>
+        <button id="controls-close" class="panel-close" type="button" aria-label="Cerrar controles y volver al mapa"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="panel-tabs" role="tablist" aria-label="Secciones del panel">
+        <button id="tab-data" type="button" role="tab" aria-selected="true" aria-controls="panel-data">Datos</button>
+        <button id="tab-analysis" type="button" role="tab" aria-selected="false" aria-controls="panel-analysis" tabindex="-1">Análisis</button>
+        <button id="tab-display" type="button" role="tab" aria-selected="false" aria-controls="panel-display" tabindex="-1">Visualización</button>
+      </div>
+      <div class="panel-content">
+        <section id="panel-data" role="tabpanel" aria-labelledby="tab-data" tabindex="0">
+          <div class="section-intro"><h3>Mediciones satelitales</h3><p>Escenas NISAR y agua candidata por fecha.</p></div>
+<div class="control-section" data-module="nisar">
+        <label class="text-xs text-emerald-300 font-bold flex items-center justify-between">
+          Ríos medidos por NISAR
+          <input id="toggle-nisar-rivers" type="checkbox" checked onchange="renderNisarRiversLayer()" class="accent-emerald-400">
+        </label>
+        <details class="layer-explanation"><summary>Acerca de esta capa</summary><p class="text-[10px] text-slate-300 leading-snug">
+          Esta es la capa defendible: sale de los HDF5 originales de NISAR L2 GCOV (malla nativa de 20 m), no de geometrías
+          de referencia ni de valores simulados. El detector realza estructuras estrechas frente al fondo y descarta
+          manchas, de modo que un cauce es una línea fina y continua.
+        </p></details>
+        <label class="block text-xs text-emerald-200">Capa
+          <select id="nisar-rivers-mode" onchange="renderNisarRiversLayer()" class="w-full bg-slate-950 rounded p-1">
+            <option value="channels">Cauces detectados sobre la imagen</option>
+            <option value="sar">Imagen de radar NISAR (retrodispersión)</option>
+            <option value="change">Cambio entre las dos fechas</option>
+          </select>
+        </label>
+        <label class="block text-xs text-emerald-200">Adquisición
+          <select id="nisar-rivers-date" onchange="renderNisarRiversLayer()" class="w-full bg-slate-950 rounded p-1">
+            <option value="before">9 de septiembre de 2026</option>
+            <option value="after">21 de septiembre de 2026</option>
+          </select>
+        </label>
+        <button data-show-map onclick="flyToNisarRivers()" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white text-xs rounded py-1">Centrar en el tramo medido por NISAR</button>
+        <p id="nisar-rivers-status" class="text-[10px] text-slate-300">Cargando…</p>
+      </div>
+<div class="control-section" data-module="gcov">
+        <label class="text-xs text-cyan-300 font-bold flex items-center justify-between">
+          Agua por fecha · GCOV
+          <input id="toggle-processed-gcov" type="checkbox" checked onchange="renderProcessedGcovLayer()" class="accent-cyan-400">
+        </label>
+        <label class="block text-xs text-cyan-200">Zona de estudio
+          <select id="gcov-region" onchange="if(this.value==='chili') map.fitBounds([[-16.425,-71.555],[-16.370,-71.515]]); renderProcessedGcovLayer();" class="w-full bg-slate-950 rounded p-1">
+            <option value="camana">Camaná — datos disponibles</option>
+            <option value="chili" selected>Chili — centro de Arequipa (9 y 21 septiembre)</option>
+          </select>
+        </label>
+        <label for="processed-gcov-mode" class="field-label">Adquisición</label>
+        <select id="processed-gcov-mode" onchange="renderProcessedGcovLayer()" class="w-full bg-slate-950 text-cyan-200 text-xs rounded p-1">
+          <option value="water_before">Agua candidata: fecha anterior</option>
+          <option value="water_after">Agua candidata: fecha posterior</option>
+          <option value="change">Cambio: persistente / nueva / retroceso</option>
+        </select>
+        <label class="block text-xs text-cyan-200">Método
+          <select id="gcov-method" onchange="renderProcessedGcovLayer()" class="w-full bg-slate-950 rounded p-1">
+            <option value="terrain">SAR + terreno (experimental)</option>
+            <option value="sar" selected>Solo SAR (comparación)</option>
+            <option value="opera">OPERA DSWx-NI — diagnóstico experimental</option>
+          </select>
+        </label>
+        <details class="layer-explanation"><summary>Acerca de esta capa</summary><p class="text-[10px] text-slate-400">Filtro experimental: altura sobre drenaje ≤15 m y pendiente ≤7°. Puede omitir agua real; no es una máscara de sombras radar.</p></details>
+        <label for="gcov-db-slider" class="block text-xs text-cyan-200">Umbral GCOV real: <output id="gcov-db-label">-14.0 dB</output>
+          <input id="gcov-db-slider" type="range" min="-26" max="-8" step="0.5" value="-14" class="w-full accent-cyan-400" oninput="document.getElementById('gcov-db-label').textContent=Number(this.value).toFixed(1)+' dB'; clearTimeout(window.gcovSliderTimer); window.gcovSliderTimer=setTimeout(renderProcessedGcovLayer,150)">
+        </label>
+        <p class="text-[10px] text-slate-400">Más negativo: más estricto. Cian = candidato por señal baja, también puede incluir sombras. Semillas 2 dB más oscuras.</p>
+        <button data-show-map onclick="if (processedGcovOverlay) map.fitBounds(processedGcovOverlay.getBounds());" class="w-full bg-cyan-700 hover:bg-cyan-600 text-white text-xs rounded py-1">Centrar en datos GCOV</button>
+        <p id="processed-gcov-status" class="text-[10px] text-slate-300">Activa para cargar los resultados de los HDF5. El umbral y las fechas se muestran al seleccionar la capa.</p>
+      </div>
+        </section>
+        <section id="panel-analysis" role="tabpanel" aria-labelledby="tab-analysis" tabindex="0" hidden>
+          <div class="section-intro"><h3>Herramientas de análisis</h3><p>Drenaje, referencias y simulaciones.</p></div>
+<div class="control-section" data-module="drainage">
         <div class="flex items-center justify-between">
-          <label class="text-[11px] font-mono font-bold tracking-wider text-emerald-300 flex items-center gap-1.5 cursor-pointer">
-            <span>🧮</span> RED DE DRENAJE (DEM + D8)
+          <label for="toggle-math-engine" class="text-[11px] font-mono font-bold tracking-wider text-emerald-300 flex items-center gap-1.5 cursor-pointer">
+             Red de drenaje · DEM + D8
           </label>
           <input type="checkbox" id="toggle-math-engine" onchange="toggleMathRiverEngine()" class="accent-emerald-400 w-4 h-4 cursor-pointer">
         </div>
 
-        <p class="text-[10px] text-slate-300 leading-snug">
+        <details class="layer-explanation"><summary>Acerca de esta capa</summary><p class="text-[10px] text-slate-300 leading-snug">
           La carga inicial muestra todos los cauces de referencia en amarillo. Recalcular analiza solo la vista actual desde el terreno. <strong>Cian:</strong> indicio óptico de agua o vegetación ribereña. <strong>Gris discontinuo:</strong> ruta inferida. Esta capa no confirma agua por radar. El agua candidata GCOV se activa por separado y solo cubre las escenas importadas.
-        </p>
+        </p></details>
 
         <div class="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
           <div>
             <span class="text-slate-400 block mb-0.5">Modo Consulta / DEM:</span>
-            <select id="math-res-select" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-emerald-300 focus:outline-none">
+            <select id="math-res-select" aria-label="Resolución del modelo de drenaje" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-emerald-300 focus:outline-none">
               <option value="standard">Rápido</option>
               <option value="high" selected>Alta resolución</option>
-              <option value="ultra">🔥 Ultra Detalle (z11/z12)</option>
+              <option value="ultra"> Ultra Detalle (z11/z12)</option>
             </select>
           </div>
           <div>
             <span class="text-slate-400 block mb-0.5">Densidad de drenaje:</span>
-            <input type="range" id="math-sens-slider" min="0.4" max="3" step="0.2" value="1.2" class="w-full accent-emerald-400 mt-1 cursor-pointer" title="Mayor = muestra más tributarios de cañón">
+            <input type="range" id="math-sens-slider" aria-label="Densidad de drenaje" min="0.4" max="3" step="0.2" value="1.2" class="w-full accent-emerald-400 mt-1 cursor-pointer" title="Mayor = muestra más tributarios de cañón">
           </div>
         </div>
 
@@ -134,10 +190,10 @@
 
         <div class="grid grid-cols-1 gap-1.5">
           <button onclick="document.getElementById('toggle-math-engine').checked = true; toggleMathRiverEngine();" class="w-full bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold py-1.5 px-2.5 rounded-lg text-xs transition shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5">
-            <span>⚡</span> <span id="btn-math-engine-text">Cargar red completa de referencia</span>
+             <span id="btn-math-engine-text">Cargar red completa de referencia</span>
           </button>
           <button onclick="document.getElementById('toggle-math-engine').checked = true; isMathEngineActive = true; runMathematicalRiverExtraction(true);" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40 font-semibold py-1 px-2 rounded-lg text-[10px] transition flex items-center justify-center gap-1" title="Recalcular la red de la vista actual">
-            <span>🔄</span> Recalcular red de esta zona
+             Recalcular red de esta zona
           </button>
         </div>
 
@@ -145,104 +201,10 @@
           Pulsa el botón para extraer los ríos matemáticamente en la vista actual.
         </div>
       </div>
-
-      <div class="bg-slate-900 border border-emerald-500/60 rounded-xl p-3 space-y-2">
-        <label class="text-xs text-emerald-300 font-bold flex items-center justify-between">
-          NISAR MEDIDO: RÍOS EN LA IMAGEN DE RADAR
-          <input id="toggle-nisar-rivers" type="checkbox" checked onchange="renderNisarRiversLayer()" class="accent-emerald-400">
-        </label>
-        <p class="text-[10px] text-slate-300 leading-snug">
-          Esta es la capa defendible: sale de los HDF5 originales de NISAR L2 GCOV (malla nativa de 20 m), no de geometrías
-          de referencia ni de valores simulados. El detector realza estructuras estrechas frente al fondo y descarta
-          manchas, de modo que un cauce es una línea fina y continua.
-        </p>
-        <label class="block text-xs text-emerald-200">Capa
-          <select id="nisar-rivers-mode" onchange="renderNisarRiversLayer()" class="w-full bg-slate-950 rounded p-1">
-            <option value="channels">Cauces detectados sobre la imagen</option>
-            <option value="sar">Imagen de radar NISAR (retrodispersión)</option>
-            <option value="change">Cambio entre las dos fechas</option>
-          </select>
-        </label>
-        <label class="block text-xs text-emerald-200">Adquisición
-          <select id="nisar-rivers-date" onchange="renderNisarRiversLayer()" class="w-full bg-slate-950 rounded p-1">
-            <option value="before">9 de septiembre de 2026</option>
-            <option value="after">21 de septiembre de 2026</option>
-          </select>
-        </label>
-        <button onclick="flyToNisarRivers()" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white text-xs rounded py-1">Centrar en el tramo medido por NISAR</button>
-        <p id="nisar-rivers-status" class="text-[10px] text-slate-300">Cargando…</p>
-      </div>
-
-      <div class="bg-slate-900 border border-cyan-500/50 rounded-xl p-3 space-y-2">
-        <label class="text-xs text-cyan-300 font-bold flex items-center justify-between">
-          GCOV: AGUA POR FECHA
-          <input id="toggle-processed-gcov" type="checkbox" checked onchange="renderProcessedGcovLayer()" class="accent-cyan-400">
-        </label>
-        <label class="block text-xs text-cyan-200">Zona de estudio
-          <select id="gcov-region" onchange="if(this.value==='chili') map.fitBounds([[-16.425,-71.555],[-16.370,-71.515]]); renderProcessedGcovLayer();" class="w-full bg-slate-950 rounded p-1">
-            <option value="camana">Camaná — datos disponibles</option>
-            <option value="chili" selected>Chili — centro de Arequipa (9 y 21 septiembre)</option>
-          </select>
-        </label>
-        <select id="processed-gcov-mode" onchange="renderProcessedGcovLayer()" class="w-full bg-slate-950 text-cyan-200 text-xs rounded p-1">
-          <option value="water_before">Agua candidata: fecha anterior</option>
-          <option value="water_after">Agua candidata: fecha posterior</option>
-          <option value="change">Cambio: persistente / nueva / retroceso</option>
-        </select>
-        <label class="block text-xs text-cyan-200">Método
-          <select id="gcov-method" onchange="renderProcessedGcovLayer()" class="w-full bg-slate-950 rounded p-1">
-            <option value="terrain">SAR + terreno (experimental)</option>
-            <option value="sar" selected>Solo SAR (comparación)</option>
-            <option value="opera">OPERA DSWx-NI — diagnóstico experimental</option>
-          </select>
-        </label>
-        <p class="text-[10px] text-slate-400">Filtro experimental: altura sobre drenaje ≤15 m y pendiente ≤7°. Puede omitir agua real; no es una máscara de sombras radar.</p>
-        <label class="block text-xs text-cyan-200">Umbral GCOV real: <output id="gcov-db-label">-14.0 dB</output>
-          <input id="gcov-db-slider" type="range" min="-26" max="-8" step="0.5" value="-14" class="w-full accent-cyan-400" oninput="document.getElementById('gcov-db-label').textContent=Number(this.value).toFixed(1)+' dB'; clearTimeout(window.gcovSliderTimer); window.gcovSliderTimer=setTimeout(renderProcessedGcovLayer,150)">
-        </label>
-        <p class="text-[10px] text-slate-400">Más negativo: más estricto. Cian = candidato por señal baja, también puede incluir sombras. Semillas 2 dB más oscuras.</p>
-        <button onclick="if (processedGcovOverlay) map.fitBounds(processedGcovOverlay.getBounds());" class="w-full bg-cyan-700 hover:bg-cyan-600 text-white text-xs rounded py-1">Centrar en datos GCOV</button>
-        <p id="processed-gcov-status" class="text-[10px] text-slate-300">Activa para cargar los resultados de los HDF5. El umbral y las fechas se muestran al seleccionar la capa.</p>
-      </div>
-
-      <!-- Exportaciones históricas del Colab; no equivalen a agua confirmada. -->
-      <div class="bg-gradient-to-br from-indigo-950/70 via-slate-900 to-rose-950/30 border border-indigo-400/50 rounded-xl p-3 shadow-xl space-y-2">
-        <div class="flex items-center justify-between">
-          <label class="text-[11px] font-mono font-bold tracking-wider text-indigo-300 flex items-center gap-1.5 cursor-pointer">
-            <span>🛰️</span> COLAB: CAMBIO PREVIO SIN VALIDAR
-          </label>
-          <input type="checkbox" id="toggle-nisar-colab" onchange="renderNisarColabLayer()" class="accent-indigo-400 w-4 h-4 cursor-pointer">
-        </div>
-
-        <p class="text-[10px] text-slate-300 leading-snug">
-          Exportaciones previas de <strong>Majes-Camaná</strong>. Las diferencias de señal son candidatas a cambio; necesitan revisar los originales y sus versiones de procesamiento. Esta capa no representa todo el río.
-        </p>
-
-        <div class="space-y-1 text-[10px] font-mono">
-          <span class="text-slate-400 block">Capa Raster NISAR GCOV (350&times;350 px):</span>
-          <select id="nisar-colab-mode" onchange="renderNisarColabLayer()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-cyan-300 focus:outline-none">
-            <option value="water_mask" selected>Cambios candidatos de señal (sin validar)</option>
-            <option value="delta_db">📊 Mapa Diferencial Puro ΔdB (Crecida - Estiaje)</option>
-            <option value="crecida">🌧️ Crecida 19-Ene-2026 (GCOV_010_147_A HHHH)</option>
-            <option value="estiaje">☀️ Estiaje 04-Sep-2026 (GCOV_029_147_A HHHH)</option>
-          </select>
-        </div>
-
-        <div class="grid grid-cols-2 gap-1.5 pt-0.5">
-          <button onclick="flyToNisarColabZone()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-2 rounded-lg text-[10px] transition flex items-center justify-center gap-1 shadow">
-            <span>🎯</span> Volar a Recorte NISAR
-          </button>
-          <button onclick="openNisarColabModal()" class="bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40 font-bold py-1.5 px-2 rounded-lg text-[10px] transition flex items-center justify-center gap-1">
-            <span>🔬</span> Ver 3 Matrices Colab
-          </button>
-        </div>
-      </div>
-
-      <!-- 1. MOTOR DE DETECCIÓN DE RÍOS EN BASE A DATOS SAR -->
-      <div class="bg-gradient-to-br from-cyan-950/50 via-slate-900 to-slate-900 border border-cyan-500/40 rounded-xl p-3 shadow-lg space-y-2">
+<div class="control-section" data-module="simulation">
         <div class="flex items-center justify-between">
           <span class="text-[11px] font-mono font-bold tracking-wider text-cyan-300 flex items-center gap-1.5">
-            RED DE REFERENCIA / SIMULACIÓN
+            Referencia y simulación
           </span>
           <span class="text-[10px] bg-cyan-500/20 text-cyan-300 font-mono px-1.5 py-0.5 rounded border border-cyan-500/40" id="detected-rivers-count">
             33 RÍOS DE REFERENCIA
@@ -262,7 +224,7 @@
             <span class="text-slate-400">Umbral de la simulación:</span>
             <span class="text-cyan-400 font-bold" id="threshold-db-label">-14.0 dB</span>
           </div>
-          <input type="range" id="sar-threshold-slider" min="-21" max="-10" step="0.5" value="-14.0" class="w-full accent-cyan-400 cursor-pointer">
+          <input type="range" id="sar-threshold-slider" aria-label="Umbral de la simulación" min="-21" max="-10" step="0.5" value="-14.0" class="w-full accent-cyan-400 cursor-pointer">
           <div class="flex justify-between text-[9px] font-mono text-slate-500">
             <span>-21 dB</span>
             <span>Valores de demostración</span>
@@ -272,66 +234,16 @@
 
         <div class="flex items-center justify-between text-[11px] font-mono bg-slate-950/80 px-2.5 py-1.5 rounded border border-slate-800">
           <span class="text-slate-400">Modo de Detección:</span>
-          <select id="detection-mode-select" class="bg-slate-900 text-cyan-300 border border-slate-700 rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none">
-            <option value="strict_sar_intersect" selected>🎯 Solo dentro de Bloques SAR Activos</option>
-            <option value="global_all">🌐 Forzar en Toda la Red Nacional</option>
+          <select id="detection-mode-select" aria-label="Modo de la simulación" class="bg-slate-900 text-cyan-300 border border-slate-700 rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none">
+            <option value="strict_sar_intersect" selected> Solo dentro de Bloques SAR Activos</option>
+            <option value="global_all"> Forzar en Toda la Red Nacional</option>
           </select>
         </div>
       </div>
-
-      <!-- 2. CONTROL MASIVO DE BLOQUES SAR DEL PERÚ (NASA ASF) -->
-      <div class="bg-slate-950/80 p-3 rounded-xl border border-indigo-900/60 space-y-2">
-        <div class="flex items-center justify-between">
-          <label class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
-            <span>🛰️</span> Cobertura de Bloques SAR (Perú / ASF)
-          </label>
-          <input type="checkbox" id="layer-swaths" checked class="accent-indigo-500 w-4 h-4 cursor-pointer">
-        </div>
-
-        <div>
-          <label class="text-[10px] font-mono text-slate-400 block mb-1">Seleccionar Bloques SAR Activos:</label>
-          <select id="track-selector" class="w-full bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1.5 text-slate-200 font-mono focus:border-indigo-500 focus:outline-none cursor-pointer">
-            <option value="peru_all">🇵🇪 TODOS LOS BLOQUES DEL PERÚ (118 Escenas Activas)</option>
-            <option value="all" selected>🛰️ Todos los Tramos Sur / Arequipa (Tracks 47, 25, 127, 120)</option>
-            <option value="basin_auto">🎯 Tramo de la Cuenca Seleccionada</option>
-            <option value="47">↗ Track 47 (Ascendente - Camaná/Majes/Chili)</option>
-            <option value="25">↙ Track 25 (Descendente - Ocoña/Camaná)</option>
-            <option value="127">↙ Track 127 (Descendente - Chili/Arequipa/Tambo)</option>
-            <option value="120">↗ Track 120 (Ascendente - Ocoña/Caravelí)</option>
-          </select>
-        </div>
-
-        <!-- Botones de Proyección Raster SAR y Consulta API en Vivo -->
-        <div class="grid grid-cols-1 gap-1.5 pt-1">
-          <button id="btn-toggle-real-sar" onclick="toggleRealSarImageOverlay()" class="w-full bg-indigo-600/40 hover:bg-indigo-600/60 border border-indigo-400/60 text-indigo-100 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow">
-            <span>📡</span> <span id="btn-real-sar-text">Proyectar Imágenes Radar en Bloques Activos</span>
-          </button>
-          <button id="btn-fetch-live-asf" onclick="fetchLiveAsfForCurrentView()" class="w-full bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-500/50 text-emerald-200 py-1.5 px-2.5 rounded-lg text-[11px] font-mono transition flex items-center justify-center gap-1.5">
-            <span>🔄</span> <span id="btn-live-asf-text">Consultar API NASA ASF en Vivo (Vista Actual)</span>
-          </button>
-        </div>
-
-        <!-- Lector de Escenas SAR Activas -->
-        <div class="bg-slate-900/90 p-2 rounded-lg border border-indigo-800/40 space-y-1 text-[10px] font-mono">
-          <div class="flex items-center justify-between text-indigo-300 font-bold">
-            <span id="asf-track-label">4 Tramos Activos</span>
-            <span id="asf-date-label" class="text-cyan-400">Ciclo 12d</span>
-          </div>
-          <div class="text-slate-400 truncate" id="asf-granule-name">
-            Cargando catálogo de escenas...
-          </div>
-          <!-- Lista desplegable rápida de escenas leídas -->
-          <div id="sar-scenes-reader-list" class="max-h-24 overflow-y-auto space-y-1 pt-1 border-t border-slate-800 text-[10px]">
-            <!-- Populated by JS -->
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. TELEMETRÍA DE CUENCA Y ALERTA TEMPRANA -->
-      <div class="bg-gradient-to-br from-slate-900 to-amber-950/20 border border-amber-500/30 rounded-xl p-3 space-y-2">
+<div class="control-section" data-module="telemetry">
         <div class="flex items-center justify-between">
           <span class="text-[11px] font-mono font-bold text-amber-400" id="pass-badge">
-            🛰️ CICLO ORBITAL +36 DÍAS
+             CICLO ORBITAL +36 DÍAS
           </span>
           <span class="text-[10px] bg-rose-500/20 text-rose-300 font-mono px-2 py-0.5 rounded border border-rose-500/40 font-bold" id="risk-level">
             ALERTA ROJA
@@ -363,30 +275,106 @@
         </div>
         <div class="hidden" id="sar-db"></div>
       </div>
-
-      <!-- 4. CURVA TEMPORAL CADA 12 DÍAS -->
-      <div class="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 space-y-1.5">
+<div class="control-section" data-module="signature">
         <div class="flex items-center justify-between">
-          <span class="text-[10px] font-mono uppercase text-slate-300 font-bold">📈 Firma &sigma;<sup>0</sup> (Cada 12 Días)</span>
+          <span class="text-[10px] font-mono uppercase text-slate-300 font-bold"> Firma &sigma;<sup>0</sup> (Cada 12 Días)</span>
           <span class="text-[10px] font-mono text-cyan-400">Umbral: -15 dB</span>
         </div>
         <div class="h-16 flex items-end justify-between gap-1 pt-1 px-1 border-b border-slate-800 relative" id="backscatter-chart">
         </div>
       </div>
+<div class="control-section" data-module="colab">
+        <div class="flex items-center justify-between">
+          <label for="toggle-nisar-colab" class="text-[11px] font-mono font-bold tracking-wider text-indigo-300 flex items-center gap-1.5 cursor-pointer">
+             Colab · Cambios sin validar
+          </label>
+          <input type="checkbox" id="toggle-nisar-colab" onchange="renderNisarColabLayer()" class="accent-indigo-400 w-4 h-4 cursor-pointer">
+        </div>
 
-      <!-- 5. CAPAS Y MAPA BASE -->
-      <div class="space-y-2">
+        <p class="text-[10px] text-slate-300 leading-snug">
+          Exportaciones previas de <strong>Majes-Camaná</strong>. Las diferencias de señal son candidatas a cambio; necesitan revisar los originales y sus versiones de procesamiento. Esta capa no representa todo el río.
+        </p>
+
+        <div class="space-y-1 text-[10px] font-mono">
+          <span class="text-slate-400 block">Capa Raster NISAR GCOV (350&times;350 px):</span>
+          <select id="nisar-colab-mode" aria-label="Capa del análisis Colab" onchange="renderNisarColabLayer()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-cyan-300 focus:outline-none">
+            <option value="water_mask" selected>Cambios candidatos de señal (sin validar)</option>
+            <option value="delta_db"> Mapa Diferencial Puro ΔdB (Crecida - Estiaje)</option>
+            <option value="crecida"> Crecida 19-Ene-2026 (GCOV_010_147_A HHHH)</option>
+            <option value="estiaje"> Estiaje 04-Sep-2026 (GCOV_029_147_A HHHH)</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-1.5 pt-0.5">
+          <button data-show-map onclick="flyToNisarColabZone()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-2 rounded-lg text-[10px] transition flex items-center justify-center gap-1 shadow">
+             Volar a Recorte NISAR
+          </button>
+          <button onclick="openNisarColabModal()" class="bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40 font-bold py-1.5 px-2 rounded-lg text-[10px] transition flex items-center justify-center gap-1">
+             Ver 3 Matrices Colab
+          </button>
+        </div>
+      </div>
+        </section>
+        <section id="panel-display" role="tabpanel" aria-labelledby="tab-display" tabindex="0" hidden>
+          <div class="section-intro"><h3>Capas y cobertura</h3><p>Escenas disponibles y opciones de visualización.</p></div>
+<div class="control-section" data-module="coverage">
+        <div class="flex items-center justify-between">
+          <label for="layer-swaths" class="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+             Cobertura SAR · ASF
+          </label>
+          <input type="checkbox" id="layer-swaths" checked class="accent-indigo-500 w-4 h-4 cursor-pointer">
+        </div>
+
+        <div>
+          <label class="text-[10px] font-mono text-slate-400 block mb-1">Seleccionar Bloques SAR Activos:</label>
+          <select id="track-selector" aria-label="Bloques SAR activos" class="w-full bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1.5 text-slate-200 font-mono focus:border-indigo-500 focus:outline-none cursor-pointer">
+            <option value="peru_all"> TODOS LOS BLOQUES DEL PERÚ (118 Escenas Activas)</option>
+            <option value="all" selected> Todos los Tramos Sur / Arequipa (Tracks 47, 25, 127, 120)</option>
+            <option value="basin_auto"> Tramo de la Cuenca Seleccionada</option>
+            <option value="47">↗ Track 47 (Ascendente - Camaná/Majes/Chili)</option>
+            <option value="25">↙ Track 25 (Descendente - Ocoña/Camaná)</option>
+            <option value="127">↙ Track 127 (Descendente - Chili/Arequipa/Tambo)</option>
+            <option value="120">↗ Track 120 (Ascendente - Ocoña/Caravelí)</option>
+          </select>
+        </div>
+
+        <!-- Botones de Proyección Raster SAR y Consulta API en Vivo -->
+        <div class="grid grid-cols-1 gap-1.5 pt-1">
+          <button id="btn-toggle-real-sar" onclick="toggleRealSarImageOverlay()" class="w-full bg-indigo-600/40 hover:bg-indigo-600/60 border border-indigo-400/60 text-indigo-100 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 shadow">
+             <span id="btn-real-sar-text">Proyectar Imágenes Radar en Bloques Activos</span>
+          </button>
+          <button id="btn-fetch-live-asf" onclick="fetchLiveAsfForCurrentView()" class="w-full bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-500/50 text-emerald-200 py-1.5 px-2.5 rounded-lg text-[11px] font-mono transition flex items-center justify-center gap-1.5">
+             <span id="btn-live-asf-text">Consultar API NASA ASF en Vivo (Vista Actual)</span>
+          </button>
+        </div>
+
+        <!-- Lector de Escenas SAR Activas -->
+        <div class="bg-slate-900/90 p-2 rounded-lg border border-indigo-800/40 space-y-1 text-[10px] font-mono">
+          <div class="flex items-center justify-between text-indigo-300 font-bold">
+            <span id="asf-track-label">4 Tramos Activos</span>
+            <span id="asf-date-label" class="text-cyan-400">Ciclo 12d</span>
+          </div>
+          <div class="text-slate-400 truncate" id="asf-granule-name">
+            Cargando catálogo de escenas...
+          </div>
+          <!-- Lista desplegable rápida de escenas leídas -->
+          <div id="sar-scenes-reader-list" class="max-h-24 overflow-y-auto space-y-1 pt-1 border-t border-slate-800 text-[10px]">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+<div class="control-section" data-module="display">
         <div class="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/80 space-y-1.5">
-          <label class="text-[11px] font-medium text-slate-200 block">🗺️ Mapa Base:</label>
-          <select id="basemap-selector" class="w-full bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 font-medium cursor-pointer">
-            <option value="esri_satellite" selected>🛰️ Esri Satelital (Alta Resolución)</option>
-            <option value="esri_dark">🌑 Esri Modo Oscuro (Ideal Contraste SAR)</option>
-            <option value="carto_dark">🌑 CartoDB Dark (Stadia Maps)</option>
-            <option value="osm">🗺️ OpenStreetMap Estándar</option>
+          <label class="text-[11px] font-medium text-slate-200 block"> Mapa Base:</label>
+          <select id="basemap-selector" aria-label="Mapa base" class="w-full bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 font-medium cursor-pointer">
+            <option value="esri_satellite" selected> Esri Satelital (Alta Resolución)</option>
+            <option value="esri_dark"> Esri Modo Oscuro (Ideal Contraste SAR)</option>
+            <option value="carto_dark"> CartoDB Dark (Stadia Maps)</option>
+            <option value="osm"> OpenStreetMap Estándar</option>
           </select>
           <div id="carto-key-container" class="hidden pt-1.5 border-t border-slate-800 space-y-1">
             <div class="flex gap-1">
-              <input type="password" id="carto-api-key" placeholder="API Key Stadia..." class="flex-1 bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 font-mono">
+              <input type="password" id="carto-api-key" aria-label="Clave de API de Stadia Maps" placeholder="API Key Stadia..." class="flex-1 bg-slate-900 border border-slate-700 text-xs rounded px-2 py-1 text-slate-200 font-mono">
               <button id="btn-apply-key" class="bg-cyan-700 px-2 py-1 rounded text-xs text-white">OK</button>
             </div>
           </div>
@@ -394,28 +382,29 @@
 
         <div class="bg-slate-950/70 p-2.5 rounded-xl border border-slate-800 space-y-1.5 text-xs">
           <label class="flex items-center justify-between cursor-pointer">
-            <span class="text-sky-300 font-medium">💧 Red de Ríos del Perú (33 Cuencas GPS)</span>
+            <span class="text-sky-300 font-medium"> Red de Ríos del Perú (33 Cuencas GPS)</span>
             <input type="checkbox" id="layer-river" checked class="accent-sky-500 w-4 h-4">
           </label>
           <label class="flex items-center justify-between cursor-pointer">
-            <span class="text-cyan-300 font-medium">🌊 Remarcado SAR de Ríos Detectados</span>
+            <span class="text-cyan-300 font-medium"> Remarcado SAR de Ríos Detectados</span>
             <input type="checkbox" id="layer-flood" checked class="accent-cyan-500 w-4 h-4">
           </label>
           <div class="flex items-center justify-between text-[10px] text-slate-400">
             <span>Intensidad Remarcado SAR:</span>
-            <input type="range" id="sar-opacity" min="15" max="100" value="90" class="accent-cyan-500 w-28">
+            <input type="range" id="sar-opacity" aria-label="Intensidad del remarcado SAR" min="15" max="100" value="90" class="accent-cyan-500 w-28">
           </div>
           <label class="flex items-center justify-between cursor-pointer pt-1 border-t border-slate-800/80">
-            <span class="text-slate-300">🏛️ WMS Oficial ANA (Todos los Ríos Perú)</span>
+            <span class="text-slate-300"> WMS Oficial ANA (Todos los Ríos Perú)</span>
             <input type="checkbox" id="layer-ana-wms" class="accent-cyan-500 w-4 h-4">
           </label>
           <label class="flex items-center justify-between cursor-pointer">
-            <span class="text-slate-300">☁️ NASA GIBS Nubosidad Real (VIIRS)</span>
+            <span class="text-slate-300"> NASA GIBS Nubosidad Real (VIIRS)</span>
             <input type="checkbox" id="layer-gibs" class="accent-cyan-500 w-4 h-4">
           </label>
         </div>
       </div>
-
+        </section>
+      </div>
     </aside>
 
     <!-- Map Canvas Container -->
@@ -456,20 +445,21 @@
       </div>
 
       <!-- Bottom Center: 12-Day Orbital Repeat Cycle Timeline Control -->
-      <div class="absolute bottom-4 left-4 right-4 z-20 bg-slate-900/95 backdrop-blur-md border border-cyan-800/60 rounded-xl p-2.5 shadow-2xl flex items-center gap-3">
-        <button id="btn-play-cycle" onclick="togglePlayCycles()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-3 py-2 rounded-lg text-xs flex items-center gap-1.5 transition shadow-lg shadow-cyan-600/30 flex-shrink-0">
-          <span id="play-icon">▶</span> <span id="play-text">Ciclo 12 Días</span>
-        </button>
-
-        <div class="flex-1 flex flex-col space-y-1">
-          <div class="flex items-center justify-between text-[10px] font-mono">
-            <span class="text-cyan-300 font-bold">⏱️ PASADAS ORBITALES CADA 12 DÍAS (DETECCIÓN MULTITEMPORAL DE RÍOS Y DESBORDES)</span>
-            <span class="text-amber-300 font-bold" id="timeline-phase-label">DESBORDE CRÍTICO</span>
+      <section class="cycle-timeline" aria-labelledby="orbital-timeline-title">
+        <div class="timeline-heading">
+          <div class="timeline-caption">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></svg>
+            <div><h2 id="orbital-timeline-title">Pasadas orbitales cada 12 días</h2><p>Detección multitemporal de ríos y desbordes</p></div>
           </div>
-          <div class="grid grid-cols-7 gap-1.5" id="orbital-timeline-steps">
-          </div>
+          <span class="timeline-phase" id="timeline-phase-label">DESBORDE CRÍTICO</span>
         </div>
-      </div>
+        <div class="timeline-controls">
+          <button id="btn-play-cycle" onclick="togglePlayCycles()" class="cycle-play" title="Reproducir o pausar la secuencia de ciclos">
+            <span id="play-icon" aria-hidden="true">▶</span><span id="play-text">Ciclo 12 Días</span>
+          </button>
+          <div id="orbital-timeline-steps" role="group" aria-label="Seleccionar ciclo orbital"></div>
+        </div>
+      </section>
 
     </div>
   </main>
@@ -519,5 +509,6 @@
   <script src="js/app.js"></script>
   <script src="js/gcov-layer.js"></script>
   <script src="js/nisar-rivers.js"></script>
+  <script src="js/workspace-ui.js"></script>
 </body>
 </html>
