@@ -146,15 +146,42 @@
         </div>
       </div>
 
+      <div class="bg-slate-900 border border-emerald-500/60 rounded-xl p-3 space-y-2">
+        <label class="text-xs text-emerald-300 font-bold flex items-center justify-between">
+          NISAR MEDIDO: RÍOS EN LA IMAGEN DE RADAR
+          <input id="toggle-nisar-rivers" type="checkbox" checked onchange="renderNisarRiversLayer()" class="accent-emerald-400">
+        </label>
+        <p class="text-[10px] text-slate-300 leading-snug">
+          Esta es la capa defendible: sale de los HDF5 originales de NISAR L2 GCOV (malla nativa de 20 m), no de geometrías
+          de referencia ni de valores simulados. El detector realza estructuras estrechas frente al fondo y descarta
+          manchas, de modo que un cauce es una línea fina y continua.
+        </p>
+        <label class="block text-xs text-emerald-200">Capa
+          <select id="nisar-rivers-mode" onchange="renderNisarRiversLayer()" class="w-full bg-slate-950 rounded p-1">
+            <option value="channels">Cauces detectados sobre la imagen</option>
+            <option value="sar">Imagen de radar NISAR (retrodispersión)</option>
+            <option value="change">Cambio entre las dos fechas</option>
+          </select>
+        </label>
+        <label class="block text-xs text-emerald-200">Adquisición
+          <select id="nisar-rivers-date" onchange="renderNisarRiversLayer()" class="w-full bg-slate-950 rounded p-1">
+            <option value="before">9 de septiembre de 2026</option>
+            <option value="after">21 de septiembre de 2026</option>
+          </select>
+        </label>
+        <button onclick="flyToNisarRivers()" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white text-xs rounded py-1">Centrar en el tramo medido por NISAR</button>
+        <p id="nisar-rivers-status" class="text-[10px] text-slate-300">Cargando…</p>
+      </div>
+
       <div class="bg-slate-900 border border-cyan-500/50 rounded-xl p-3 space-y-2">
         <label class="text-xs text-cyan-300 font-bold flex items-center justify-between">
           GCOV: AGUA POR FECHA
-          <input id="toggle-processed-gcov" type="checkbox" onchange="renderProcessedGcovLayer()" class="accent-cyan-400">
+          <input id="toggle-processed-gcov" type="checkbox" checked onchange="renderProcessedGcovLayer()" class="accent-cyan-400">
         </label>
         <label class="block text-xs text-cyan-200">Zona de estudio
           <select id="gcov-region" onchange="if(this.value==='chili') map.fitBounds([[-16.425,-71.555],[-16.370,-71.515]]); renderProcessedGcovLayer();" class="w-full bg-slate-950 rounded p-1">
             <option value="camana">Camaná — datos disponibles</option>
-            <option value="chili">Chili — centro de Arequipa (9 y 21 septiembre)</option>
+            <option value="chili" selected>Chili — centro de Arequipa (9 y 21 septiembre)</option>
           </select>
         </label>
         <select id="processed-gcov-mode" onchange="renderProcessedGcovLayer()" class="w-full bg-slate-950 text-cyan-200 text-xs rounded p-1">
@@ -164,8 +191,8 @@
         </select>
         <label class="block text-xs text-cyan-200">Método
           <select id="gcov-method" onchange="renderProcessedGcovLayer()" class="w-full bg-slate-950 rounded p-1">
-            <option value="terrain" selected>SAR + terreno (experimental)</option>
-            <option value="sar">Solo SAR (comparación)</option>
+            <option value="terrain">SAR + terreno (experimental)</option>
+            <option value="sar" selected>Solo SAR (comparación)</option>
             <option value="opera">OPERA DSWx-NI — diagnóstico experimental</option>
           </select>
         </label>
@@ -223,7 +250,10 @@
         </div>
 
         <p class="text-[11px] text-slate-300 leading-snug">
-          Recorta geometrías de referencia según la cobertura de escenas. Los valores por ciclo son de demostración; este control no clasifica píxeles SAR. Para agua medida usa la capa GCOV por fecha y valida sus umbrales.
+          <strong class="text-amber-300">SIMULACIÓN — no es una medición de radar.</strong>
+          Recorta geometrías de referencia según la cobertura de escenas y les aplica un valor de retrodispersión inventado por ciclo.
+          Este control no clasifica píxeles SAR. Para agua medida usa la capa <strong>NISAR medido</strong> o la capa GCOV por fecha,
+          y valida sus umbrales.
         </p>
 
         <!-- Threshold Slider -->
@@ -488,5 +518,6 @@
   <script src="js/sar-math-engine.js"></script>
   <script src="js/app.js"></script>
   <script src="js/gcov-layer.js"></script>
+  <script src="js/nisar-rivers.js"></script>
 </body>
 </html>

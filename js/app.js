@@ -68,6 +68,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof renderNisarColabLayer === 'function') {
     renderNisarColabLayer();
   }
+  if (typeof renderNisarRiversLayer === 'function') {
+    renderNisarRiversLayer(true);
+  }
+  if (typeof renderProcessedGcovLayer === 'function') {
+    renderProcessedGcovLayer();
+  }
 
   setTimeout(() => {
     if (map) map.invalidateSize();
@@ -102,6 +108,16 @@ function initMap() {
 
   map.createPane('criticalPane');
   map.getPane('criticalPane').style.zIndex = 660;
+
+  // Imagen de radar NISAR: por debajo de los ríos, por encima del fondo.
+  map.createPane('nisarPane');
+  map.getPane('nisarPane').style.zIndex = 520;
+  map.getPane('nisarPane').style.pointerEvents = 'none';
+
+  // Detección de cauces sobre la imagen de radar.
+  map.createPane('nisarMaskPane');
+  map.getPane('nisarMaskPane').style.zIndex = 600;
+  map.getPane('nisarMaskPane').style.pointerEvents = 'none';
 
   swathLayerGroup = L.layerGroup();
   realSarOverlayGroup = L.layerGroup();
