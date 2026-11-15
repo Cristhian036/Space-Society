@@ -12,6 +12,19 @@ async function renderProcessedGcovLayer() {
   if (!enabled) { status.textContent = 'Agua por fecha y cambio, a partir de los originales.'; return; }
   status.textContent = 'Cargando resultados GCOV...';
   try {
+    if (document.getElementById('gcov-method').value === 'opera') {
+      if (document.getElementById('gcov-region').value !== 'chili') throw new Error('La prueba OPERA se ejecutó solo para Chili. Selecciona esa zona.');
+      const response = await fetch('output/opera_chili/web_manifest.json', {cache:'no-store'});
+      if (!response.ok) throw new Error('Aún no hay diagnóstico OPERA exportado.');
+      const diagnostic = await response.json();
+      if (request !== processedGcovRequest) return;
+      if (diagnostic.status === 'failed') throw new Error(diagnostic.warning);
+      processedGcovOverlay = L.imageOverlay('output/opera_chili/diagnostic.png', diagnostic.bounds,
+        {pane:'riversTopPane',opacity:.85,interactive:false}).addTo(map);
+      if (!map.getBounds().intersects(L.latLngBounds(diagnostic.bounds))) map.fitBounds(diagnostic.bounds);
+      status.textContent = `${diagnostic.warning} Fecha ${diagnostic.date}. Naranja: clase agua del algoritmo; amarillo: agua parcial. El deslizador dB y el selector de fecha no modifican esta ejecución OPERA.`;
+      return;
+    }
     const region = document.getElementById('gcov-region').value;
     const root = region === 'chili' ? 'output/chili' : 'output/gcov';
     const resp = await fetch(`${root}/web_manifest.json`, {cache: 'no-store'});
