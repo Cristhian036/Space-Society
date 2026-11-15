@@ -119,6 +119,11 @@ function initMap() {
   map.getPane('nisarMaskPane').style.zIndex = 600;
   map.getPane('nisarMaskPane').style.pointerEvents = 'none';
 
+  // Agua candidata GCOV: se ve, pero no debe tapar la imagen de radar.
+  map.createPane('gcovPane');
+  map.getPane('gcovPane').style.zIndex = 540;
+  map.getPane('gcovPane').style.pointerEvents = 'none';
+
   swathLayerGroup = L.layerGroup();
   realSarOverlayGroup = L.layerGroup();
   floodLayerGroup = L.layerGroup();

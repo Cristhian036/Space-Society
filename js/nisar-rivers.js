@@ -7,7 +7,21 @@
 let nisarRiverOverlay = null;
 let nisarRiverVectors = null;
 let nisarRiverRequest = 0;
-const NISAR_REGION_ROOT = 'output/nisar_chili';
+let nisarManifestCache = null;
+// La primera carga encuadra sobre la zona medida: si no, el recorte de NISAR
+// queda como un rectangulo pequeno dentro de la vista nacional.
+let nisarFirstFitDone = false;
+
+// Zonas con exportacion real de NISAR L2 GCOV.
+const NISAR_REGIONS = {
+  majes: { root: 'output/nisar_majes', label: 'Majes-Camaná (valle inferior)' }
+};
+
+function nisarRegionRoot() {
+  const sel = document.getElementById('nisar-rivers-region');
+  const key = sel && sel.value ? sel.value : 'majes';
+  return (NISAR_REGIONS[key] || NISAR_REGIONS.majes).root;
+}
 
 function nisarChannelStyle(feature) {
   const props = feature.properties || {};
@@ -24,11 +38,11 @@ function nisarChannelPopup(feature) {
   const tipo = p.tipo === 'agua_abierta_oscura'
     ? 'Agua abierta / sombra especular (oscura en Banda L)'
     : 'Corredor ripario o cauce con vegetación (brillante en Banda L)';
+  const cambio = p.cambio ? `<br>Cambio entre fechas: ${p.cambio}` : '';
   return `<div style="min-width:230px">
     <strong style="color:#ffd43b">Cauce detectado por NISAR</strong><br>
     <span style="color:#94a3b8">${tipo}</span><hr style="border-color:#334155">
-    Adquisición: ${p.adquisicion || 's/d'}<br>
-    Cambio entre fechas: ${p.cambio || 's/d'}<br>
+    Adquisición: ${p.adquisicion || 's/d'}${cambio}<br>
     Largo: ${(p.largo_m || 0).toLocaleString('es-PE')} m &nbsp; Ancho medio: ${(p.ancho_m || 0).toFixed(0)} m<br>
     Elongación: ${p.elongacion || 's/d'} &nbsp; dB medio: ${p.db_medio ?? 's/d'}<br>
     <span style="color:#64748b;font-size:11px">${p.origen || ''}</span>
@@ -39,6 +53,41 @@ function clearNisarRiversLayer() {
   if (nisarRiverOverlay) { map.removeLayer(nisarRiverOverlay); nisarRiverOverlay = null; }
   if (nisarRiverVectors) { map.removeLayer(nisarRiverVectors); nisarRiverVectors = null; }
 }
+
+/* El selector de fecha se arma con las adquisiciones realmente exportadas:
+   si la carpeta tiene una sola fecha, el visor no ofrece un "antes" falso. */
+function nisarSyncDateOptions(manifest) {
+  const select = document.getElementById('nisar-rivers-date');
+  if (!select) return;
+  const fechas = (manifest.fechas || []).map(f => ({
+    clave: f.clave,
+    etiqueta: f.adquisicion ? `${f.adquisicion}` : f.clave
+  }));
+  const previous = select.value;
+  select.innerHTML = '';
+  if (!fechas.length) return;
+  fechas.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f.clave;
+    opt.textContent = f.etiqueta;
+    select.appendChild(opt);
+  });
+  if (fechas.some(f => f.clave === previous)) select.value = previous;
+}
+
+function nisarSyncModeOptions(manifest) {
+  const select = document.getElementById('nisar-rivers-mode');
+  if (!select) return;
+  const changeOption = select.querySelector('option[value="change"]');
+  if (!changeOption) return;
+  const disponible = Boolean(manifest.change_layer);
+  changeOption.disabled = !disponible;
+  changeOption.textContent = disponible
+    ? 'Cambio entre las dos fechas'
+    : 'Cambio entre fechas (no disponible: una sola adquisición)';
+  if (!disponible && select.value === 'change') select.value = 'channels';
+}
+
 async function renderNisarRiversLayer(fit = false) {
   const request = ++nisarRiverRequest;
   const enabled = document.getElementById('toggle-nisar-rivers').checked;
@@ -49,38 +98,45 @@ async function renderNisarRiversLayer(fit = false) {
     return;
   }
   status.textContent = 'Cargando imagen NISAR GCOV y cauces detectados...';
+  const root = nisarRegionRoot();
   try {
-    const resp = await fetch(`${NISAR_REGION_ROOT}/web_manifest.json`, { cache: 'no-store' });
+    const resp = await fetch(`${root}/web_manifest.json`, { cache: 'no-store' });
     if (!resp.ok) throw new Error('No se encontró la exportación de NISAR. Ejecuta gcov_rivers.py sobre los HDF5.');
     const manifest = await resp.json();
     if (request !== nisarRiverRequest) return;
+    nisarManifestCache = manifest;
+
+    nisarSyncDateOptions(manifest);
+    nisarSyncModeOptions(manifest);
 
     const mode = document.getElementById('nisar-rivers-mode').value;
     const bounds = L.latLngBounds(manifest.bounds);
     const fecha = document.getElementById('nisar-rivers-date').value;
-    const sarKey = fecha === 'after' ? 'sar_after' : 'sar_before';
-    const maskKey = fecha === 'after' ? 'channels_after' : 'channels_before';
+    const sarKey = manifest.layers[`sar_${fecha}`] ? `sar_${fecha}` : `sar_before`;
+    const maskKey = manifest.layers[`channels_${fecha}`] ? `channels_${fecha}` : `channels_before`;
     nisarRiverOverlay = L.layerGroup().addTo(map);
 
     if (mode === 'sar') {
-      nisarRiverOverlay.addLayer(L.imageOverlay(`${NISAR_REGION_ROOT}/${manifest.layers[sarKey]}`, bounds,
+      nisarRiverOverlay.addLayer(L.imageOverlay(`${root}/${manifest.layers[sarKey]}`, bounds,
         { pane: 'nisarPane', opacity: 0.9, interactive: false }));
     }
     if (mode === 'channels') {
       // La imagen de radar es la medida; la máscara y los vectores son la detección.
-      nisarRiverOverlay.addLayer(L.imageOverlay(`${NISAR_REGION_ROOT}/${manifest.layers[sarKey]}`, bounds,
+      nisarRiverOverlay.addLayer(L.imageOverlay(`${root}/${manifest.layers[sarKey]}`, bounds,
         { pane: 'nisarPane', opacity: 0.9, interactive: false }));
-      nisarRiverOverlay.addLayer(L.imageOverlay(`${NISAR_REGION_ROOT}/${manifest.layers[maskKey]}`, bounds,
-        { pane: 'nisarMaskPane', opacity: 0.85, interactive: false }));
+      if (manifest.layers[maskKey]) {
+        nisarRiverOverlay.addLayer(L.imageOverlay(`${root}/${manifest.layers[maskKey]}`, bounds,
+          { pane: 'nisarMaskPane', opacity: 0.85, interactive: false }));
+      }
     }
-    if (mode === 'change') {
-      nisarRiverOverlay.addLayer(L.imageOverlay(`${NISAR_REGION_ROOT}/${manifest.change_layer}`, bounds,
+    if (mode === 'change' && manifest.change_layer) {
+      nisarRiverOverlay.addLayer(L.imageOverlay(`${root}/${manifest.change_layer}`, bounds,
         { pane: 'nisarMaskPane', opacity: 0.9, interactive: false }));
     }
     nisarRiverOverlay.eachLayer(l => l.on('error', () => { status.textContent = 'No se pudo cargar la imagen exportada.'; }));
 
     if (mode === 'channels' || mode === 'change') {
-      const geo = await (await fetch(`${NISAR_REGION_ROOT}/${manifest.channels}`, { cache: 'no-store' })).json();
+      const geo = await (await fetch(`${root}/${manifest.channels}`, { cache: 'no-store' })).json();
       if (request !== nisarRiverRequest) return;
       nisarRiverVectors = L.geoJSON(geo, {
         pane: 'riversTopPane',
@@ -90,16 +146,21 @@ async function renderNisarRiversLayer(fit = false) {
       }).addTo(map);
     }
 
-    if (fit || !map.getBounds().intersects(bounds)) map.fitBounds(bounds, { padding: [24, 24] });
+    const encuadrar = fit || !nisarFirstFitDone;
+    if (encuadrar || !map.getBounds().intersects(bounds)) map.fitBounds(bounds, { padding: [24, 24] });
+    nisarFirstFitDone = true;
     const d = manifest.detector || {};
-    status.textContent = `NISAR L2 GCOV, malla nativa ${d.pixel_m} m. ${manifest.lineas.before.brillo + manifest.lineas.before.oscuro} cauces el ${manifest.before.zeroDopplerStartTime.slice(0, 10)} y ${manifest.lineas.after.brillo + manifest.lineas.after.oscuro} el ${manifest.after.zeroDopplerStartTime.slice(0, 10)}. ${manifest.warning}`;
+    const lineas = Object.values(manifest.lineas || {}).reduce((acc, v) => acc + (v.brillo || 0) + (v.oscuro || 0), 0);
+    const fechas = (manifest.fechas || []).map(f => `${f.adquisicion || f.clave} (${f.lineas} cauces)`).join(' y ');
+    status.textContent = `NISAR L2 GCOV, malla nativa ${d.pixel_m} m. ${lineas} cauces detectados · ${fechas}. ${manifest.warning || ''}`;
   } catch (err) {
     if (request === nisarRiverRequest) status.textContent = err.message;
   }
 }
 
 function flyToNisarRivers() {
-  fetch(`${NISAR_REGION_ROOT}/web_manifest.json`, { cache: 'no-store' })
+  const root = nisarRegionRoot();
+  fetch(`${root}/web_manifest.json`, { cache: 'no-store' })
     .then(r => r.json())
     .then(m => map.fitBounds(L.latLngBounds(m.bounds), { padding: [24, 24] }))
     .catch(() => {});

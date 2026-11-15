@@ -31,12 +31,15 @@ from skimage.morphology import skeletonize
 
 from gcov_water import read_raster
 
-DEFAULT_SCALE_M = 400.0
+DEFAULT_SCALE_M = 500.0
 DEFAULT_K_BRIGHT = 2.5
 DEFAULT_K_DARK = 2.5
-DEFAULT_MIN_LENGTH_M = 500.0
-DEFAULT_MAX_WIDTH_M = 200.0
+DEFAULT_MIN_LENGTH_M = 2000.0
+DEFAULT_MAX_WIDTH_M = 150.0
 DEFAULT_MIN_AREA_M2 = 6000.0
+DEFAULT_MIN_ELONGATION = 3.0
+# Distancia a la que se descarta una linea que solo es rompiente de olas.
+SURF_GUARD_M = 400.0
 
 
 def _block_median(a, block):
@@ -113,13 +116,63 @@ def component_shape(label_image, values, pixel_m):
         width_m = (area_px * pixel_m * pixel_m / length_m) if length_m > 0 else np.inf
         pts = np.column_stack([xs, ys]).astype(float)
         centre = pts.mean(axis=0)
-        cov = np.cov((pts - centre).T)
-        eig = np.linalg.eigvalsh(cov)[::-1] if cov.ndim else np.array([0.0, 0.0])
-        elongation = float(np.sqrt(float(eig[0]) / max(float(eig[1]), 1e-6)))
+        if len(pts) > 2:
+            cov = np.cov((pts - centre).T)
+            eig = np.linalg.eigvalsh(cov)[::-1] if cov.ndim else np.array([0.0, 0.0])
+            elongation = float(np.sqrt(float(eig[0]) / max(float(eig[1]), 1e-6)))
+        else:
+            elongation = 1.0
         dB = float(np.nanmedian(values[ys, xs]))
         out[int(lab)] = {"area_px": area_px, "length_m": length_m, "width_m": width_m,
                          "elongation": elongation, "db": dB}
     return out
+
+
+def open_water_bodies(db, pixel_m, min_area_m2=5_000_000.0, max_std_db=3.0, size_px=9, close_px=25):
+    """Mar y lagunas: superficies muy oscuras y planas (specular, sin textura).
+
+    El rompiente de olas sobre la orilla es una linea brillante y estrecha que
+    un detector de cauces no puede separar de un cauce por su forma. Se
+    delimitan los cuerpos de agua abiertos para descartar esa linea.
+    """
+    valid = np.isfinite(db)
+    if not valid.any():
+        return np.zeros(db.shape, bool)
+    values = db[valid]
+    filled = np.where(valid, db, np.nanmedian(values))
+    mean = ndi.uniform_filter(filled, size=size_px, mode="nearest")
+    mean_sq = ndi.uniform_filter(filled ** 2, size=size_px, mode="nearest")
+    std = np.sqrt(np.maximum(mean_sq - mean ** 2, 0.0))
+    thr = float(np.percentile(values, 5.0))
+    candidate = valid & (db < thr) & (std < max_std_db)
+    if close_px > 1:
+        # El speckle rompe la superficie en fragmentos: se cierran para que el
+        # cuerpo de agua sea una sola region.
+        candidate = ndi.binary_closing(candidate, structure=np.ones((close_px, close_px)))
+    labels, n = ndi.label(candidate, structure=np.ones((3, 3)))
+    if not n:
+        return np.zeros(db.shape, bool)
+    sizes = ndi.sum_labels(candidate, labels, index=range(1, n + 1))
+    min_px = max(min_area_m2 / (pixel_m * pixel_m), 1)
+    keep = [i + 1 for i, s in enumerate(sizes) if s >= min_px]
+    return np.isin(labels, keep)
+
+
+def surf_guard(kept_mask, sea_mask, pixel_m, max_dist_m=SURF_GUARD_M, max_share=0.4):
+    """Quita lineas que viven sobre la orilla (rompiente) de un cuerpo de mar."""
+    if not sea_mask.any() or not kept_mask.any():
+        return kept_mask, np.zeros_like(kept_mask)
+    dist = ndi.distance_transform_edt(~sea_mask) * pixel_m
+    near = dist <= max_dist_m
+    labels, n = ndi.label(kept_mask, structure=np.ones((3, 3)))
+    out = kept_mask.copy()
+    surf = np.zeros_like(kept_mask)
+    for lab in range(1, n + 1):
+        comp = labels == lab
+        if near[comp].mean() > max_share:
+            out &= ~comp
+            surf |= comp
+    return out, surf
 
 
 def _chains(skel):
@@ -149,7 +202,8 @@ def _chains(skel):
     return chains
 
 
-def extract_lines(mask, values, pixel_m, min_length_m, max_width_m, min_area_m2):
+def extract_lines(mask, values, pixel_m, min_length_m, max_width_m, min_area_m2,
+                  min_elongation=DEFAULT_MIN_ELONGATION):
     """Cauces como líneas: esqueleto de componentes alargados."""
     labels, n = ndi.label(mask, structure=np.ones((3, 3)))
     if not n:
@@ -163,7 +217,7 @@ def extract_lines(mask, values, pixel_m, min_length_m, max_width_m, min_area_m2)
             continue
         if s["width_m"] > max_width_m:
             continue
-        if s["elongation"] < 2.0:
+        if s["elongation"] < min_elongation:
             continue
         keep.append(lab)
     lines, stats = [], []
@@ -236,17 +290,28 @@ def write_mask_png(path, mask, transform, crs, colors):
 
 def run(before_path, after_path, bbox, output, scale_m=DEFAULT_SCALE_M, k_bright=DEFAULT_K_BRIGHT,
         k_dark=DEFAULT_K_DARK, min_length_m=DEFAULT_MIN_LENGTH_M, max_width_m=DEFAULT_MAX_WIDTH_M,
-        min_area_m2=DEFAULT_MIN_AREA_M2, polarization="HHHH", mask_values=None):
+        min_area_m2=DEFAULT_MIN_AREA_M2, polarization="HHHH", mask_values=None,
+        min_elongation=DEFAULT_MIN_ELONGATION):
+    """Detecta cauces en la imagen GCOV.
+
+    `after_path` puede ser None: entonces se procesa una sola adquisicion y no
+    se publica ningun producto de cambio.
+    """
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     before, transform, crs, meta_before = read_raster(before_path, bbox, polarization, "power", mask_values)
-    after, at, ac, meta_after = read_raster(after_path, bbox, polarization, "power", mask_values)
+    dates = [("before", before, meta_before)]
+    if after_path:
+        after, at, ac, meta_after = read_raster(after_path, bbox, polarization, "power", mask_values)
+        dates.append(("after", after, meta_after))
     pixel_m = abs(transform.a)
     size_px = max(int(round(scale_m / pixel_m)), 3) | 1
-    min_area_px = max(int(round(min_area_m2 / (pixel_m * pixel_m))), 1)
+
+    sea = open_water_bodies(before, pixel_m)
+    surf_lines = 0
 
     per_date = {}
-    for label, data in (("before", before), ("after", after)):
+    for label, data, _meta in dates:
         valid = np.isfinite(data)
         sm = ndi.median_filter(np.where(valid, data, np.nan_to_num(data, nan=float(np.nanmedian(data)))), size=3)
         sm[~valid] = np.nan
@@ -254,14 +319,26 @@ def run(before_path, after_path, bbox, output, scale_m=DEFAULT_SCALE_M, k_bright
         found = {}
         kept = {}
         for kind, mask in masks.items():
-            lines, stats, kept_mask = extract_lines(mask, data, pixel_m, min_length_m, max_width_m, min_area_m2)
+            lines, stats, kept_mask = extract_lines(mask, data, pixel_m, min_length_m, max_width_m,
+                                                    min_area_m2, min_elongation)
+            kept_mask, surf = surf_guard(kept_mask, sea, pixel_m)
+            if surf.any():
+                surf_lines += 1
+                keep_idx = []
+                for line, s in zip(lines, stats):
+                    ys = np.clip(np.round(line[:, 1]).astype(int), 0, kept_mask.shape[0] - 1)
+                    xs = np.clip(np.round(line[:, 0]).astype(int), 0, kept_mask.shape[1] - 1)
+                    if surf[ys, xs].mean() <= 0.5:
+                        keep_idx.append((line, s))
+                lines = [x[0] for x in keep_idx]
+                stats = [x[1] for x in keep_idx]
+                kept_mask &= ~surf
             found[kind] = {"lines": lines, "stats": stats}
             kept[kind] = kept_mask
         per_date[label] = {"masks": masks, "found": found, "kept": kept, "sm": sm}
 
     features = []
-    for label in ("before", "after"):
-        meta = meta_before if label == "before" else meta_after
+    for label, _data, meta in dates:
         for kind, found in per_date[label]["found"].items():
             for line, s in zip(found["lines"], found["stats"]):
                 coords = to_geographic(line, transform, crs)
@@ -283,76 +360,74 @@ def run(before_path, after_path, bbox, output, scale_m=DEFAULT_SCALE_M, k_bright
     (output / "channels.geojson").write_text(
         json.dumps({"type": "FeatureCollection", "features": features}, ensure_ascii=False), encoding="utf-8")
 
-    counts = {}
-    for label in ("before", "after"):
-        counts[label] = {kind: len(per_date[label]["found"][kind]["lines"])
-                         for kind in per_date[label]["found"]}
+    counts = {label: {kind: len(per_date[label]["found"][kind]["lines"])
+                      for kind in per_date[label]["found"]} for label, _d, _m in dates}
 
-    # cambio entre fechas: agua candidata presente en una sola adquisición
-    mask_b = per_date["before"]["kept"]["brillo"] | per_date["before"]["kept"]["oscuro"]
-    mask_a = per_date["after"]["kept"]["brillo"] | per_date["after"]["kept"]["oscuro"]
-    change = np.full(before.shape, 255, dtype=np.uint8)
-    change[mask_b | mask_a] = 0
-    change[mask_b & mask_a] = 1
-    change[mask_a & ~mask_b] = 2
-    change[mask_b & ~mask_a] = 3
-    write_mask_png(output / "change.png", change, transform, crs,
-                   {1: (0, 215, 255, 210), 2: (255, 70, 110, 220), 3: (255, 185, 45, 210)})
+    if len(dates) == 2:
+        # cambio entre fechas: agua candidata presente en una sola adquisición
+        mask_b = per_date["before"]["kept"]["brillo"] | per_date["before"]["kept"]["oscuro"]
+        mask_a = per_date["after"]["kept"]["brillo"] | per_date["after"]["kept"]["oscuro"]
+        change = np.full(before.shape, 255, dtype=np.uint8)
+        change[mask_b | mask_a] = 0
+        change[mask_b & mask_a] = 1
+        change[mask_a & ~mask_b] = 2
+        change[mask_b & ~mask_a] = 3
+        write_mask_png(output / "change.png", change, transform, crs,
+                       {1: (0, 215, 255, 210), 2: (255, 70, 110, 220), 3: (255, 185, 45, 210)})
 
-    for feature in features:
-        fecha = feature["properties"]["fecha"]
-        if fecha == "before":
-            propio, otro = mask_b, mask_a
-        else:
-            propio, otro = mask_a, mask_b
-        pts = feature["geometry"]["coordinates"]
-        lons = [p[0] for p in pts]
-        lats = [p[1] for p in pts]
-        xs, ys = rasterio.warp.transform("EPSG:4326", crs.to_string(), lons, lats)
-        rows, cols = rasterio.transform.rowcol(transform, list(xs), list(ys))
-        rows = np.clip(np.array(rows), 0, before.shape[0] - 1)
-        cols = np.clip(np.array(cols), 0, before.shape[1] - 1)
-        own = propio[rows, cols].mean()
-        oth = otro[rows, cols].mean()
-        if own > 0 and oth > 0:
-            estado = "persistente"
-        elif own > 0:
-            estado = "nuevo"
-        else:
-            estado = "retirado"
-        feature["properties"]["cambio"] = estado
-        feature["properties"]["coincide_otra_fecha_porcentaje"] = round(float(oth) * 100, 1)
+        for feature in features:
+            fecha = feature["properties"]["fecha"]
+            if fecha == "before":
+                propio, otro = mask_b, mask_a
+            else:
+                propio, otro = mask_a, mask_b
+            pts = feature["geometry"]["coordinates"]
+            lons = [p[0] for p in pts]
+            lats = [p[1] for p in pts]
+            xs, ys = rasterio.warp.transform("EPSG:4326", crs.to_string(), lons, lats)
+            rows, cols = rasterio.transform.rowcol(transform, list(xs), list(ys))
+            rows = np.clip(np.array(rows), 0, before.shape[0] - 1)
+            cols = np.clip(np.array(cols), 0, before.shape[1] - 1)
+            own = propio[rows, cols].mean()
+            oth = otro[rows, cols].mean()
+            if own > 0 and oth > 0:
+                estado = "persistente"
+            elif own > 0:
+                estado = "nuevo"
+            else:
+                estado = "retirado"
+            feature["properties"]["cambio"] = estado
+            feature["properties"]["coincide_otra_fecha_porcentaje"] = round(float(oth) * 100, 1)
 
-    (output / "channels.geojson").write_text(
-        json.dumps({"type": "FeatureCollection", "features": features}, ensure_ascii=False), encoding="utf-8")
+        (output / "channels.geojson").write_text(
+            json.dumps({"type": "FeatureCollection", "features": features}, ensure_ascii=False), encoding="utf-8")
 
     bounds = None
-    for label, fname in (("before", "sar_before.png"), ("after", "sar_after.png")):
-        b, lo, hi = write_sar_png(output / fname, per_date[label]["sm"], transform, crs)
-        bounds = bounds or b
+    layers = {}
     mask_colors = {1: (0, 215, 255, 200), 2: (255, 196, 61, 200)}
-    merged = np.zeros(before.shape, np.uint8)
-    merged[per_date["before"]["kept"]["oscuro"]] = 1
-    merged[per_date["before"]["kept"]["brillo"]] = 2
-    write_mask_png(output / "channels_before.png", merged, transform, crs, mask_colors)
-    merged_a = np.zeros(before.shape, np.uint8)
-    merged_a[per_date["after"]["kept"]["oscuro"]] = 1
-    merged_a[per_date["after"]["kept"]["brillo"]] = 2
-    write_mask_png(output / "channels_after.png", merged_a, transform, crs, mask_colors)
+    for label, _data, _meta in dates:
+        b, _lo, _hi = write_sar_png(output / f"sar_{label}.png", per_date[label]["sm"], transform, crs)
+        bounds = bounds or b
+        layers[f"sar_{label}"] = f"sar_{label}.png"
+        merged = np.zeros(before.shape, np.uint8)
+        merged[per_date[label]["kept"]["oscuro"]] = 1
+        merged[per_date[label]["kept"]["brillo"]] = 2
+        write_mask_png(output / f"channels_{label}.png", merged, transform, crs, mask_colors)
+        layers[f"channels_{label}"] = f"channels_{label}.png"
 
+    fechas = [{"clave": label,
+               "adquisicion": meta.get("zeroDopplerStartTime", "")[:10],
+               "lineas": sum(counts[label].values())}
+              for label, _d, meta in dates]
     manifest = {
         "bounds": bounds,
-        "layers": {
-            "sar_before": "sar_before.png",
-            "sar_after": "sar_after.png",
-            "channels_before": "channels_before.png",
-            "channels_after": "channels_after.png",
-        },
+        "layers": layers,
         "channels": "channels.geojson",
-        "change_layer": "change.png",
+        "fechas": fechas,
+        "adquisiciones": len(fechas),
         "status": "nisar_channel_detector_unvalidated",
         "before": meta_before,
-        "after": meta_after,
+        "after": dates[1][2] if len(dates) == 2 else None,
         "detector": {
             "tipo": "top-hat morfológico + filtro de forma (largo/estrecho) + esqueleto",
             "escala_m": scale_m,
@@ -360,15 +435,22 @@ def run(before_path, after_path, bbox, output, scale_m=DEFAULT_SCALE_M, k_bright
             "k_oscuro": k_dark,
             "largo_min_m": min_length_m,
             "ancho_max_m": max_width_m,
+            "elongacion_min": min_elongation,
             "area_min_m2": min_area_m2,
             "pixel_m": pixel_m,
             "resolucion_nativa": True,
+            "lineas_descartadas_por_rompiente": surf_lines,
         },
         "lineas": counts,
         "legend": "Cian: agua abierta o sombra especular (oscura en L). Amarillo: corredor ripario o cauce "
                   "con vegetación (brillante en L, doble rebote). Líneas: esqueleto del cauce detectado.",
         "warning": "Detección exploratoria sobre GCOV nativo. No demuestra inundación ni ausencia de ella.",
     }
+    if len(dates) == 2:
+        manifest["change_layer"] = "change.png"
+    else:
+        manifest["change_unavailable_reason"] = ("Solo hay una adquisición en esta zona: "
+                                                 "no se puede calcular cambio entre fechas.")
     (output / "web_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return manifest
 
@@ -376,7 +458,7 @@ def run(before_path, after_path, bbox, output, scale_m=DEFAULT_SCALE_M, k_bright
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--before", required=True)
-    p.add_argument("--after", required=True)
+    p.add_argument("--after")
     p.add_argument("--bbox", nargs=4, type=float, metavar=("WEST", "SOUTH", "EAST", "NORTH"), required=True)
     p.add_argument("--output", required=True)
     p.add_argument("--scale", type=float, default=DEFAULT_SCALE_M)
@@ -387,9 +469,10 @@ def main():
     p.add_argument("--min-area", type=float, default=DEFAULT_MIN_AREA_M2)
     p.add_argument("--polarization", choices=["HHHH", "HVHV"], default="HHHH")
     p.add_argument("--mask-values", nargs="+", type=int)
+    p.add_argument("--min-elongation", type=float, default=DEFAULT_MIN_ELONGATION)
     a = p.parse_args()
     m = run(a.before, a.after, a.bbox, a.output, a.scale, a.k_bright, a.k_dark, a.min_length,
-            a.max_width, a.min_area, a.polarization, a.mask_values)
+            a.max_width, a.min_area, a.polarization, a.mask_values, a.min_elongation)
     print(json.dumps({k: v for k, v in m.items() if k not in ("before", "after")}, ensure_ascii=False, indent=2))
 
 

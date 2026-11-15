@@ -156,6 +156,11 @@
           de referencia ni de valores simulados. El detector realza estructuras estrechas frente al fondo y descarta
           manchas, de modo que un cauce es una línea fina y continua.
         </p>
+        <label class="block text-xs text-emerald-200">Zona de estudio
+          <select id="nisar-rivers-region" onchange="renderNisarRiversLayer(true)" class="w-full bg-slate-950 rounded p-1">
+            <option value="majes" selected>Majes-Camaná (valle inferior del Chili y Majes)</option>
+          </select>
+        </label>
         <label class="block text-xs text-emerald-200">Capa
           <select id="nisar-rivers-mode" onchange="renderNisarRiversLayer()" class="w-full bg-slate-950 rounded p-1">
             <option value="channels">Cauces detectados sobre la imagen</option>
@@ -165,8 +170,7 @@
         </label>
         <label class="block text-xs text-emerald-200">Adquisición
           <select id="nisar-rivers-date" onchange="renderNisarRiversLayer()" class="w-full bg-slate-950 rounded p-1">
-            <option value="before">9 de septiembre de 2026</option>
-            <option value="after">21 de septiembre de 2026</option>
+            <option value="before">cargando…</option>
           </select>
         </label>
         <button onclick="flyToNisarRivers()" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white text-xs rounded py-1">Centrar en el tramo medido por NISAR</button>
@@ -179,26 +183,27 @@
           <input id="toggle-processed-gcov" type="checkbox" checked onchange="renderProcessedGcovLayer()" class="accent-cyan-400">
         </label>
         <label class="block text-xs text-cyan-200">Zona de estudio
-          <select id="gcov-region" onchange="if(this.value==='chili') map.fitBounds([[-16.425,-71.555],[-16.370,-71.515]]); renderProcessedGcovLayer();" class="w-full bg-slate-950 rounded p-1">
-            <option value="camana">Camaná — datos disponibles</option>
-            <option value="chili" selected>Chili — centro de Arequipa (9 y 21 septiembre)</option>
+          <select id="gcov-region" onchange="renderProcessedGcovLayer()" class="w-full bg-slate-950 rounded p-1">
+            <option value="majes" selected>Majes-Camaná — NISAR 22-Oct-2026</option>
+            <option value="legacy_chili">Chili — exportación anterior</option>
+            <option value="legacy_camana">Camaná — exportación anterior</option>
           </select>
         </label>
         <select id="processed-gcov-mode" onchange="renderProcessedGcovLayer()" class="w-full bg-slate-950 text-cyan-200 text-xs rounded p-1">
-          <option value="water_before">Agua candidata: fecha anterior</option>
-          <option value="water_after">Agua candidata: fecha posterior</option>
+          <option value="water_before">Agua candidata: adquisición disponible</option>
+          <option value="water_after">Agua candidata: segunda fecha</option>
           <option value="change">Cambio: persistente / nueva / retroceso</option>
         </select>
         <label class="block text-xs text-cyan-200">Método
           <select id="gcov-method" onchange="renderProcessedGcovLayer()" class="w-full bg-slate-950 rounded p-1">
-            <option value="terrain">SAR + terreno (experimental)</option>
             <option value="sar" selected>Solo SAR (comparación)</option>
+            <option value="terrain">SAR + terreno (experimental)</option>
             <option value="opera">OPERA DSWx-NI — diagnóstico experimental</option>
           </select>
         </label>
         <p class="text-[10px] text-slate-400">Filtro experimental: altura sobre drenaje ≤15 m y pendiente ≤7°. Puede omitir agua real; no es una máscara de sombras radar.</p>
-        <label class="block text-xs text-cyan-200">Umbral GCOV real: <output id="gcov-db-label">-14.0 dB</output>
-          <input id="gcov-db-slider" type="range" min="-26" max="-8" step="0.5" value="-14" class="w-full accent-cyan-400" oninput="document.getElementById('gcov-db-label').textContent=Number(this.value).toFixed(1)+' dB'; clearTimeout(window.gcovSliderTimer); window.gcovSliderTimer=setTimeout(renderProcessedGcovLayer,150)">
+        <label class="block text-xs text-cyan-200">Umbral GCOV real: <output id="gcov-db-label">-20.0 dB</output>
+          <input id="gcov-db-slider" type="range" min="-22" max="-12" step="0.5" value="-20" class="w-full accent-cyan-400" oninput="document.getElementById('gcov-db-label').textContent=Number(this.value).toFixed(1)+' dB'; clearTimeout(window.gcovSliderTimer); window.gcovSliderTimer=setTimeout(renderProcessedGcovLayer,150)">
         </label>
         <p class="text-[10px] text-slate-400">Más negativo: más estricto. Cian = candidato por señal baja, también puede incluir sombras. Semillas 2 dB más oscuras.</p>
         <button onclick="if (processedGcovOverlay) map.fitBounds(processedGcovOverlay.getBounds());" class="w-full bg-cyan-700 hover:bg-cyan-600 text-white text-xs rounded py-1">Centrar en datos GCOV</button>

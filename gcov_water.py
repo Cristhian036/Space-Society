@@ -28,6 +28,34 @@ def power_to_db(power):
     return db
 
 
+# Anomalias y enfoque del radar en `inputDataExceptionMask` de GCOV.
+#
+# El atributo `description` del producto define el bitset: "Bitwise OR of input
+# data exception codes for each image pixel (0: no anomaly, 2: NISAR LSAR
+# qFSP-H1 sample slip). Also includes OR of validity mask bits, where each bit is
+# set on for fully-focused data or off for partially focused or missing data
+# (256:HH, 512:HV, 1024:VH, 2048:VV, 4096:LH, 8192:LV, 16384:RH, 32768:RV)".
+#
+# Por tanto el valor NO es cero en una escena valida: es un bitset. La version
+# P05036 escribe 768 = 256 + 512 (HH y HV enfocados, sin anomalias) en todo el
+# pie valido. Exigir `== 0` descartaba la escena completa.
+ANOMALY_BITS = 0b10  # 2: sample slip (anomalia real de los datos de entrada)
+FOCUS_BITS = {"HHHH": 256, "HVHV": 512, "VVVV": 1024, "VHVH": 2048}
+
+
+def exception_mask_keep(exceptions, polarization="HHHH"):
+    """Pixels sin anomalias de entrada y con la polarizacion enfocada."""
+    ex = np.asarray(exceptions)
+    fill = np.iinfo(ex.dtype).max
+    ex = np.where(ex == fill, 0, ex)
+    keep = (ex & ANOMALY_BITS) == 0
+    bit = FOCUS_BITS.get(polarization)
+    if bit and np.any((ex & bit) != 0):
+        # Solo si el granulo codifica el bit de enfoque hay que exigirlo.
+        keep &= (ex & bit) != 0
+    return keep
+
+
 def water_candidates(db, threshold, margin=2.0):
     """Grow strong seeds only through valid, low-backscatter evidence.
 
@@ -98,9 +126,10 @@ def read_raster(path, bbox, polarization="HHHH", units="power", mask_values=None
                 if key in g["mask"].attrs:
                     valid &= ~np.isin(quality, np.atleast_1d(g["mask"].attrs[key]))
             if "inputDataExceptionMask" in g:
-                # Current GCOV metadata: 0 means no anomaly; nonzero is an
-                # exception bitset (e.g. sample slips), not evidence of water.
-                valid &= g["inputDataExceptionMask"][rs, cs] == 0
+                # Bitset: bit 2 = anomalias de entrada (sample slip);
+                # bit 256/512 = polarizacion enfocada. Un valor no nulo no
+                # significa por si solo que el pixel sea invalido.
+                valid &= exception_mask_keep(g["inputDataExceptionMask"][rs, cs], polarization)
             if "numberOfLooks" in g:
                 looks = g["numberOfLooks"][rs, cs]
                 valid &= np.isfinite(looks) & (looks > 0)
@@ -158,25 +187,33 @@ def write_tif(path, data, transform, crs, nodata):
         dst.write(data, 1)
 
 
-def export_web(output, layers, transform, crs, summary):
-    """Reproject categorical images to Web Mercator before making Leaflet PNGs."""
+def write_web_png(path, data, transform, crs, colors):
+    """Reproyecta una imagen categorica a Web Mercator y la guarda como PNG."""
     from rasterio.transform import array_bounds
-    shape = next(iter(layers.values())).shape
+    shape = data.shape
     bounds = array_bounds(*shape, transform)
     wt, width, height = calculate_default_transform(crs, "EPSG:3857", shape[1], shape[0], *bounds)
     west, south, east, north = transform_bounds("EPSG:3857", "EPSG:4326", *array_bounds(height, width, wt))
+    warped = np.full((height, width), 255, dtype=np.uint8)
+    reproject(data, warped, src_transform=transform, src_crs=crs,
+              dst_transform=wt, dst_crs="EPSG:3857", src_nodata=255, dst_nodata=255,
+              resampling=Resampling.nearest)
+    rgba = np.zeros((height, width, 4), dtype=np.uint8)
+    for value, color in colors.items():
+        rgba[warped == value] = color
+    path.parent.mkdir(parents=True, exist_ok=True)
+    Image.fromarray(rgba).save(path)
+    return [[south, west], [north, east]]
+
+
+def export_web(output, layers, transform, crs, summary):
+    """Reproject categorical images to Web Mercator before making Leaflet PNGs."""
     colors = {"water_before": {1: (0, 215, 255, 210)}, "water_after": {1: (0, 215, 255, 210)},
               "change": {1: (0, 215, 255, 210), 2: (255, 70, 110, 220), 3: (255, 185, 45, 210)}}
+    web_bounds = None
     for name, data in layers.items():
-        warped = np.full((height, width), 255, dtype=np.uint8)
-        reproject(data, warped, src_transform=transform, src_crs=crs,
-                  dst_transform=wt, dst_crs="EPSG:3857", src_nodata=255, dst_nodata=255,
-                  resampling=Resampling.nearest)
-        rgba = np.zeros((height, width, 4), dtype=np.uint8)
-        for value, color in colors[name].items():
-            rgba[warped == value] = color
-        Image.fromarray(rgba).save(output / f"{name}.png")
-    manifest = {"bounds": [[south, west], [north, east]],
+        web_bounds = write_web_png(output / f"{name}.png", data, transform, crs, colors[name]) or web_bounds
+    manifest = {"bounds": web_bounds,
                 "layers": {name: f"{name}.png" for name in layers},
                 "status": summary["status"], "before": summary["metadata_before"], "after": summary["metadata_after"],
                 "legend": "Cian: agua candidata persistente; rojo: nueva; ámbar: retroceso. Sin validación local.",
@@ -185,6 +222,59 @@ def export_web(output, layers, transform, crs, summary):
                 "strong_margin_db": summary["strong_margin_db"],
                 "change_unavailable_reason": summary.get("change_unavailable_reason")}
     (output / "web_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def run_single(path, output, bbox, thresholds, margin=2.0, polarization="HHHH", units="power", mask_values=None):
+    """Agua candidata de una sola adquisicion, con variantes por umbral.
+
+    Sin una segunda fecha comparable no se puede publicar un producto de
+    cambio, pero si el agua candidata de esa fecha para varios umbrales.
+    """
+    if not thresholds or not all(np.isfinite(v) for v in (*bbox, *thresholds, margin)) or margin < 0:
+        raise ValueError("Parametros numericos invalidos")
+    if not (-180 <= bbox[0] < bbox[2] <= 180 and -85 <= bbox[1] < bbox[3] <= 85):
+        raise ValueError("BBox invalido: oeste sur este norte")
+    db, transform, crs, meta = read_raster(path, bbox, polarization, units, mask_values)
+    if not crs.is_projected or crs.linear_units != "metre":
+        raise ValueError("La malla de referencia debe usar coordenadas proyectadas en metros")
+    valid = np.isfinite(db)
+    if not valid.any():
+        raise ValueError("No hay pixeles validos en esta zona")
+    ha = abs(transform.a * transform.e - transform.b * transform.d) / 10000
+    output = Path(output)
+    output.mkdir(parents=True, exist_ok=True)
+    variants = {}
+    for index, threshold in enumerate(sorted(thresholds)):
+        wet = water_candidates(db, threshold, margin) & valid
+        layer = np.where(valid, wet, 255).astype(np.uint8)
+        name = f"water_before"
+        relative = f"thresholds/m{index}/{name}.png"
+        web_bounds = write_web_png(output / relative, layer, transform, crs, {1: (0, 215, 255, 210)})
+        variants[f"{threshold:.1f}"] = {"layers": {name: relative},
+                                        "area_ha": {"before": float(wet.sum() * ha)}}
+    default = sorted(thresholds)[len(thresholds) // 2]
+    default_rel = f"thresholds/m{sorted(thresholds).index(default)}/water_before.png"
+    summary = {"status": "single_date_water_candidates_unvalidated",
+               "source": str(Path(path).resolve()),
+               "metadata_before": meta, "metadata_after": None,
+               "crs": crs.to_string(), "threshold_before_db": default,
+               "threshold_after_db": default, "strong_margin_db": margin,
+               "polarization": polarization, "accepted_mask_values": mask_values,
+               "valid_pixels": int(valid.sum()),
+               "thresholds_db": sorted(thresholds),
+               "warning": "Umbrales pendientes de validacion local. Una sola adquisicion no permite cambio."}
+    (output / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    manifest = {"bounds": web_bounds,
+                "layers": {"water_before": default_rel},
+                "threshold_variants": variants,
+                "status": summary["status"], "before": meta, "after": None,
+                "legend": "Cian: agua candidata en la imagen NISAR GCOV del dia indicado. Sin validacion local.",
+                "threshold_before_db": default, "threshold_after_db": default,
+                "strong_margin_db": margin,
+                "change_unavailable_reason": "Solo hay una adquisicion en esta zona: no se puede calcular cambio entre fechas.",
+                "adquisiciones": 1}
+    (output / "web_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    return summary
 
 
 def run(before_path, after_path, output, bbox, threshold_before, threshold_after,
@@ -265,9 +355,20 @@ def main():
     p.add_argument("--units", choices=["power", "db"], default="power", help="Solo para GeoTIFF; HDF5 siempre potencia")
     p.add_argument("--mask-values", nargs="+", type=int)
     p.add_argument("--independent-dates", action="store_true", help="Exportar agua por fecha sin calcular cambio ni delta entre versiones diferentes")
+    p.add_argument("--single", action="store_true", help="Procesar una sola adquisicion y publicar agua por umbral")
+    p.add_argument("--thresholds", nargs="+", type=float, help="Umbrales de agua para --single")
     a = p.parse_args()
     if a.inspect:
         inspect_h5(a.inspect)
+        return
+    if a.single:
+        if not a.before or not a.bbox or not a.thresholds:
+            p.error("Indica --before, --bbox y --thresholds para --single")
+        try:
+            print(json.dumps(run_single(a.before, a.output, a.bbox, a.thresholds, a.margin,
+                                        a.polarization, a.units, a.mask_values), indent=2))
+        except (ValueError, KeyError, OSError) as exc:
+            p.exit(1, f"No se pudo procesar GCOV: {exc}\n")
         return
     if not all([a.before, a.after, a.bbox]) or a.threshold_before is None or a.threshold_after is None:
         p.error("Indica --before, --after, --bbox y ambos umbrales de agua")
