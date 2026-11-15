@@ -25,6 +25,7 @@ RichDEM, PySheds, TauDEM y WhiteboxTools:
 """
 
 import json
+import hashlib
 import math
 import os
 import sqlite3
@@ -60,6 +61,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.join(BASE_DIR, ".dem_cache")
 DB_PATH = os.path.join(BASE_DIR, "hydro_rivers.sqlite")
 os.makedirs(CACHE_DIR, exist_ok=True)
+RESULT_CACHE_PATH = os.path.join(CACHE_DIR, "hydro_results_v3.sqlite")
+ALGORITHM_VERSION = "d8-connected-v3"
 
 TERRARIUM_URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
 IMAGERY_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -277,6 +280,62 @@ def strahler(order, rec, stream):
             elif o == maxo[r]:
                 cnt[r] += 1
     return so, nup
+
+
+def stream_paths(rec, stream, nup):
+    """Yield every link, including two-cell links between adjacent junctions.
+
+    Include the first terminal non-stream receiver (e.g. a lake shore), but never
+    follow across that boundary. Junction endpoints are shared by adjoining links.
+    """
+    starts = np.flatnonzero(stream & (nup != 1))
+    for start in starts:
+        path = [int(start)]
+        c = int(rec[start])
+        while c >= 0:
+            path.append(c)
+            if not stream[c] or nup[c] != 1:
+                break
+            if len(path) > len(rec):
+                raise ValueError("Ciclo inesperado en la red D8")
+            c = int(rec[c])
+        if len(path) >= 2:
+            yield np.asarray(path, dtype=np.int64)
+
+
+def decode_dem(rgb):
+    """Do not turn failed downloads into artificial sea-level drainage outlets."""
+    if not np.isfinite(rgb).all():
+        raise ValueError("DEM incompleto: faltan teselas. Reintenta la descarga; no se calcularán ríos sobre NoData.")
+    return (rgb[..., 0].astype(np.float64) * 256.0 + rgb[..., 1]
+            + rgb[..., 2] / 256.0 - 32768.0)
+
+
+def compute_cached_rivers(south, north, west, east, res="high", sens=1.0, burn=True, force=False):
+    """Cache complete responses by exact AOI, settings and algorithm version.
+
+    The legacy segment database is retained as a reference, never used as a
+    complete calculation for an overlapping viewport. Empty results are cached.
+    """
+    values = (south, north, west, east, sens)
+    if not all(math.isfinite(v) for v in values) or not (-85 <= south < north <= 85 and -180 <= west < east <= 180):
+        raise ValueError("Límites geográficos inválidos")
+    if res not in MAX_TILES or sens <= 0:
+        raise ValueError("Resolución o sensibilidad inválida")
+    key = hashlib.sha256(json.dumps([ALGORITHM_VERSION, *values, res, burn]).encode()).hexdigest()
+    with sqlite3.connect(RESULT_CACHE_PATH, timeout=30) as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS results (cache_key TEXT PRIMARY KEY, payload TEXT NOT NULL)")
+        row = None if force else conn.execute("SELECT payload FROM results WHERE cache_key = ?", (key,)).fetchone()
+    if row:
+        result = json.loads(row[0])
+        result["source"] = "complete_result_cache"
+        return result
+    result = extract_rivers(south, north, west, east, res=res, sens=sens, burn=burn)
+    result["algorithmVersion"] = ALGORITHM_VERSION
+    result["source"] = "dem_live"
+    with sqlite3.connect(RESULT_CACHE_PATH, timeout=30) as conn:
+        conn.execute("INSERT OR REPLACE INTO results VALUES (?, ?)", (key, json.dumps(result, allow_nan=False)))
+    return result
 
 
 @njit(cache=True)
@@ -515,11 +574,7 @@ def extract_rivers(south, north, west, east, res="high", sens=1.0, burn=True, bu
     timings["download_ms"] = int((time.perf_counter() - t0) * 1000)
 
     h, w = dem_rgb.shape[:2]
-    nodata = np.isnan(dem_rgb[..., 0])
-    dem_rgb = np.nan_to_num(dem_rgb, nan=0.0)
-    Z = dem_rgb[..., 0] * 256.0 + dem_rgb[..., 1] + dem_rgb[..., 2] / 256.0 - 32768.0
-    Z = Z.astype(np.float64)
-    Z[nodata] = 0.0
+    Z = decode_dem(dem_rgb)
 
     # Geometria por fila (metros por pixel en Mercator)
     rows = np.arange(h)
@@ -534,7 +589,7 @@ def extract_rivers(south, north, west, east, res="high", sens=1.0, burn=True, bu
     flat_w = np.clip((25.0 - relief_raw) / 20.0, 0.0, 1.0)
     Zs = flat_w * ndi.gaussian_filter(Z, sigma=3.0) + (1.0 - flat_w) * ndi.gaussian_filter(Z, sigma=0.8)
 
-    ocean = (Z <= 0.0) | nodata
+    ocean = Z <= 0.0
 
     # 3. Indice de agua + stream burning
     wp = np.zeros_like(Zs, dtype=np.float32)
@@ -592,7 +647,6 @@ def extract_rivers(south, north, west, east, res="high", sens=1.0, burn=True, bu
 
     # 9. Segmentacion por tramos
     stream_idx = np.nonzero(stream)[0]
-    starts = stream_idx[nup[stream_idx] != 1]
     wp_flat = wp.ravel()
     z_flat = Z.ravel()
 
@@ -604,17 +658,8 @@ def extract_rivers(south, north, west, east, res="high", sens=1.0, burn=True, bu
 
     links = []
     max_order = int(so.max()) if stream_idx.size else 0
-    for s in starts:
-        path = [int(s)]
-        c = int(rec[s])
-        while c >= 0:
-            path.append(c)
-            if not stream[c] or nup[c] != 1:
-                break
-            c = int(rec[c])
-        if len(path) < 3:
-            continue
-        p = np.array(path, dtype=np.int64)
+    for p in stream_paths(rec, stream, nup):
+        s = int(p[0])
         core = p[:-1] if not stream[p[-1]] else p
         rr, cc = np.divmod(p, w)
         pix = np.column_stack([cc, rr]).astype(np.float64)
@@ -627,6 +672,8 @@ def extract_rivers(south, north, west, east, res="high", sens=1.0, burn=True, bu
             "areaKm2": round(float(acc[core[-1]]), 2),
             "water": round(float(wp_flat[core].mean()), 3),
             "elev": round(float(z_flat[core].mean()), 0),
+            "evidence": "optical_proxy" if burn else "dem_inferred",
+            "sarDb": None,
         })
 
     # Filtro de legibilidad: si hay demasiados tramos, descartar ordenes bajos
@@ -670,143 +717,6 @@ def tile_y2lat_arr(y, z):
 
 
 # ----------------------------------------------------------------------------
-# Consulta instantanea desde SQLite (< 5 ms) y guardado incremental
-# ----------------------------------------------------------------------------
-def query_sqlite_rivers(south: float, north: float, west: float, east: float, sens: float = 1.0):
-    t0 = time.perf_counter()
-    if not os.path.exists(DB_PATH):
-        return None
-
-    lat_span = abs(north - south)
-    # Ajustar orden mínimo según el nivel de zoom / extensión y sensibilidad
-    if lat_span > 7.5:
-        min_order = 3 if sens <= 1.2 else 2
-    elif lat_span > 3.0:
-        min_order = 2 if sens <= 1.4 else 1
-    else:
-        min_order = 1
-
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute(
-        """
-        SELECT segment_name, basin_name, strahler_order, area_km2, water_prob,
-               valley_depth_m, elev_m, sar_db, is_main_stem, coords_json
-        FROM river_segments
-        WHERE max_lat >= ? AND min_lat <= ?
-          AND max_lon >= ? AND min_lon <= ?
-          AND strahler_order >= ?
-        ORDER BY is_main_stem DESC, strahler_order DESC, area_km2 DESC
-        LIMIT 2400
-        """,
-        (south - 0.08, north + 0.08, west - 0.08, east + 0.08, min_order),
-    )
-    rows = cur.fetchall()
-
-    cur.execute("SELECT SUM(cells_processed), COUNT(*) FROM precalc_regions")
-    meta_row = cur.fetchone()
-    total_precalc_cells = int(meta_row[0] or 7272960) if meta_row else 7272960
-    conn.close()
-
-    if not rows:
-        return None
-
-    links = []
-    max_order = 1
-    for (seg_name, basin_name, s_ord, area_km2, w_prob, v_depth, elev_m, sar_db, is_main, c_json) in rows:
-        s_ord = int(s_ord)
-        if s_ord > max_order:
-            max_order = s_ord
-        links.append(
-            {
-                "name": seg_name,
-                "basin": basin_name,
-                "coords": json.loads(c_json),
-                "order": s_ord,
-                "isMainStem": bool(is_main),
-                "areaKm2": float(area_km2),
-                "water": float(w_prob),
-                "valleyDepthMeters": float(v_depth),
-                "elev": float(elev_m),
-                "sarDb": float(sar_db),
-            }
-        )
-
-    elapsed_ms = max(1, int(round((time.perf_counter() - t0) * 1000)))
-    return {
-        "status": "ok",
-        "source": "sqlite_precalculated",
-        "engine": "SQLite Spatial Index (Priority-Flood+ε / D8 / TPI Valley Filter)",
-        "bounds": {"south": south, "north": north, "west": west, "east": east},
-        "metrics": {
-            "demZoom": 11 if lat_span < 2.0 else 10,
-            "pixelMeters": 36.8 if lat_span < 2.0 else 73.3,
-            "gridW": 1792,
-            "gridH": 1280,
-            "totalNodes": total_precalc_cells,
-            "areaThresholdKm2": round(3.2 / max(0.3, sens), 2),
-            "maxStrahler": max_order,
-            "minOrderShown": min_order,
-            "links": len(links),
-            "lakePixels": 6339,
-            "burn": True,
-            "total_ms": elapsed_ms,
-        },
-        "polylines": links,
-    }
-
-
-def save_live_segments_to_sqlite(links: list, region_tag: str = "custom_live"):
-    if not os.path.exists(DB_PATH) or not links:
-        return
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    rows = []
-    for l in links:
-        coords = l.get("coords", [])
-        if len(coords) < 2:
-            continue
-        pts = np.asarray(coords, dtype=np.float64)
-        s_ord = int(l.get("order", 2))
-        w_prob = float(l.get("water", 0.35))
-        # Descartar trazos débiles que van por tierra seca
-        if s_ord == 1 and w_prob < 0.20:
-            continue
-        rows.append(
-            (
-                region_tag,
-                "Cálculo DEM en Vivo",
-                f"Tramo Calculado (Strahler {s_ord})",
-                s_ord,
-                float(l.get("areaKm2", 5.0)),
-                w_prob,
-                25.0,
-                float(l.get("elev", 1500.0)),
-                round(-(14.5 + s_ord * 0.9), 1),
-                1 if s_ord >= 3 else 0,
-                float(pts[:, 0].min()),
-                float(pts[:, 0].max()),
-                float(pts[:, 1].min()),
-                float(pts[:, 1].max()),
-                json.dumps(coords, separators=(",", ":")),
-            )
-        )
-    if rows:
-        cur.executemany(
-            """
-            INSERT INTO river_segments (
-                region_key, basin_name, segment_name, strahler_order, area_km2,
-                water_prob, valley_depth_m, elev_m, sar_db, is_main_stem,
-                min_lat, max_lat, min_lon, max_lon, coords_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            rows,
-        )
-        conn.commit()
-    conn.close()
-
-
-# ----------------------------------------------------------------------------
 # Servidor HTTP
 # ----------------------------------------------------------------------------
 class Handler(BaseHTTPRequestHandler):
@@ -847,21 +757,10 @@ class Handler(BaseHTTPRequestHandler):
                 sens = float(g("sens", 1.0))
                 force_recalc = g("force_recalc", "0") in ("1", "true")
 
-                result = None
-                if not force_recalc:
-                    result = query_sqlite_rivers(south, north, west, east, sens=sens)
-
-                if result is None:
-                    result = extract_rivers(
-                        south,
-                        north,
-                        west,
-                        east,
-                        res=g("res", "high"),
-                        sens=sens,
-                        burn=g("burn", "1") not in ("0", "false"),
-                    )
-                    save_live_segments_to_sqlite(result.get("polylines", []))
+                result = compute_cached_rivers(
+                    south, north, west, east, res=g("res", "high"), sens=sens,
+                    burn=g("burn", "1") not in ("0", "false"), force=force_recalc,
+                )
 
                 self._headers(200)
                 self.wfile.write(json.dumps(result).encode())

@@ -3,3 +3,9 @@
 __pycache__/
 *.pyc
 .dem_cache/
+.pytest_cache/
+output/
+*.h5
+*.hdf5
+hydro_rivers_v3.sqlite
+.playwright-cli/

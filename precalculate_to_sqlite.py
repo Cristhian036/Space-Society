@@ -3,8 +3,8 @@
 SPACE SOCIETY — Precalculador Hidrológico de Alta Fidelidad hacia SQLite (hydro_rivers.sqlite)
 ===============================================================================================
 Ejecuta el cálculo pesado UNA SOLA VEZ y guarda toda la red de ríos, tributarios,
-órdenes de Strahler, cotas DEM, profundidades de cañón (TPI/HAND), áreas de drenaje D8 (km²)
-y firmas SAR (dB) en una base de datos SQLite indexada espacialmente (`hydro_rivers.sqlite`).
+órdenes de Strahler, cotas DEM y áreas de drenaje D8 (km²) en una base
+SQLite nueva (`hydro_rivers_v3.sqlite`). No genera mediciones SAR.
 
 Refinamientos matemáticos para evitar que los ríos "se vayan por tierra":
 1. Rechazo de Sombras Topográficas (TPI + Pendiente): El agua observada solo puede quemar el DEM
@@ -12,8 +12,7 @@ Refinamientos matemáticos para evitar que los ríos "se vayan por tierra":
    de los cerros desvíen el flujo D8 por tierra seca.
 2. Sin desenfoque gaussiano destructivo en cañones: Se preserva el talweg nativo del DEM y se
    aplica tallado profundo (-20 m) en el eje del cauce real.
-3. Poda de laderas secas (Overland Chute Pruning): Se descartan escorrentías de ladera empinada
-   sin incisión de valle ni firma hídrica.
+3. Conserva los enlaces topológicos aunque falte evidencia óptica de agua.
 """
 
 import json
@@ -32,7 +31,7 @@ from scipy import ndimage as ndi
 import hydro_sar_microservice as h
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "hydro_rivers.sqlite")
+DB_PATH = os.path.join(BASE_DIR, "hydro_rivers_v3.sqlite")
 AREQUIPA_DATA_JS = os.path.join(BASE_DIR, "js", "arequipa-data.js")
 
 
@@ -53,7 +52,7 @@ def init_db(conn: sqlite3.Connection):
             water_prob REAL NOT NULL,
             valley_depth_m REAL NOT NULL,
             elev_m REAL NOT NULL,
-            sar_db REAL NOT NULL,
+            sar_db REAL,
             is_main_stem INTEGER NOT NULL,
             min_lat REAL NOT NULL,
             max_lat REAL NOT NULL,
@@ -127,7 +126,7 @@ def extract_refined_ab_initio_zone(
     - Rechaza sombras topográficas en laderas (solo quema agua donde TPI <= 1.5m y pendiente < 6°).
     - Si existen trazos de talweg conocidos o detectados por agua, los talla profundamente (-25m)
       en la matriz DEM para que el flujo D8 NUNCA se salga por tierra seca.
-    - Poda cualquier línea de orden bajo que intente cruzar laderas secas sin incisión de valle.
+    - Conserva la conectividad D8; el índice óptico no confirma agua.
     """
     x0, x1 = int(h.lon2tile_x(west, dem_zoom)), int(h.lon2tile_x(east, dem_zoom))
     y0, y1 = int(h.lat2tile_y(north, dem_zoom)), int(h.lat2tile_y(south, dem_zoom))
@@ -136,10 +135,7 @@ def extract_refined_ab_initio_zone(
     img_rgb = h._mosaic("img", dem_zoom, x0, x1, y0, y1)
 
     H, W = dem_rgb.shape[:2]
-    nodata = np.isnan(dem_rgb[..., 0])
-    dem_rgb = np.nan_to_num(dem_rgb, nan=0.0)
-    Z = (dem_rgb[..., 0] * 256.0 + dem_rgb[..., 1] + dem_rgb[..., 2] / 256.0 - 32768.0).astype(np.float64)
-    Z[nodata] = 0.0
+    Z = h.decode_dem(dem_rgb)
 
     rows = np.arange(H)
     lat_rows = np.array([h.tile_y2lat(y0 + (r + 0.5) / 256.0, dem_zoom) for r in rows])
@@ -155,7 +151,7 @@ def extract_refined_ab_initio_zone(
     dz_dy, dz_dx = np.gradient(Z, dist_ns)
     slope_deg = np.degrees(np.arctan(np.hypot(dz_dx, dz_dy)))
 
-    ocean = (Z <= 0.0) | nodata
+    ocean = Z <= 0.0
 
     # Probabilidad de agua / vegetación riparia ESTRICTAMENTE restringida a fondos de valle (evita irse por tierra)
     wp_raw = h.water_probability(img_rgb)
@@ -195,8 +191,10 @@ def extract_refined_ab_initio_zone(
                     rr = int(round(r1 + t * (r2 - r1)))
                     cc = int(round(c1 + t * (c2 - c1)))
                     if 1 <= rr < H - 1 and 1 <= cc < W - 1:
-                        Zc[rr - 1 : rr + 2, cc - 1 : cc + 2] -= 28.0
                         burned_mask[rr - 1 : rr + 2, cc - 1 : cc + 2] = True
+        # Burn each cell only once. Repeated guide vertices must not accumulate
+        # thousands of metres of artificial incision.
+        Zc[burned_mask] -= 28.0
 
     seeds = ocean | lakes
     seeds[0, :] = seeds[-1, :] = True
@@ -213,57 +211,28 @@ def extract_refined_ab_initio_zone(
     total_km2 = float(cell_area_km2[land].sum())
     a_min = max(3.2, total_km2 / 850.0)
 
-    # Condición estricta para que un píxel sea cauce:
-    # Debe superar el área de drenaje Y estar en un talweg inciso (TPI <= 0.5) o tener agua/quema confirmada
-    tpi_flat = tpi.ravel()
+    # Preserve downstream topology; optical/TPI evidence describes confidence,
+    # it must not punch holes through an otherwise connected drainage path.
     wp_flat = wp.ravel()
-    burned_flat = burned_mask.ravel()
     land_flat = land.ravel()
 
-    stream = (
-        (acc >= a_min)
-        & land_flat
-        & ((tpi_flat <= 0.4) | (wp_flat >= 0.18) | burned_flat | (acc >= a_min * 3.5))
-    )
+    stream = (acc >= a_min) & land_flat
 
     so, nup = h.strahler(order, rec, stream)
-    stream_idx = np.nonzero(stream)[0]
-    starts = stream_idx[nup[stream_idx] != 1]
 
     z_flat = Z.ravel()
     inc_flat = valley_incision.ravel()
 
     segments = []
-    for s in starts:
-        path = [int(s)]
-        c = int(rec[s])
-        while c >= 0:
-            path.append(c)
-            if not stream[c] or nup[c] != 1:
-                break
-            c = int(rec[c])
-        if len(path) < 4:
-            continue
-
-        p = np.array(path, dtype=np.int64)
+    for p in h.stream_paths(rec, stream, nup):
+        s = int(p[0])
         core = p[:-1] if not stream[p[-1]] else p
         str_order = int(so[s])
         mean_wp = float(wp_flat[core].mean())
-        is_burned = bool(burned_flat[core].any())
-        mean_tpi = float(tpi_flat[core].mean())
         mean_depth = round(max(3.0, float(inc_flat[core].mean())), 1)
         area_val = float(acc[core[-1]])
 
-        # PODA ESTRICTA CONTRA TRAZOS QUE SE VAN POR TIERRA SECA:
-        # Un tramo D8 solo se acepta si:
-        # 1) Pertenece al talweg principal quemado (is_burned), O
-        # 2) Tiene agua/vegetación confirmada en el fondo del valle (mean_wp >= 0.22 y mean_tpi <= -0.5), O
-        # 3) Es un cañón/quebrada de orden >= 2 con incisión topográfica real (mean_tpi <= -2.2 y valley_depth >= 22m)
-        if not is_burned:
-            has_confirmed_water = (mean_wp >= 0.22) and (mean_tpi <= -0.4)
-            has_deep_canyon = (str_order >= 2) and (mean_tpi <= -2.2) and (mean_depth >= 22.0) and (area_val >= a_min * 1.8)
-            if not (has_confirmed_water or has_deep_canyon):
-                continue
+        # Low optical evidence means inferred drainage, not a disconnected river.
 
         rr, cc = np.divmod(p, W)
         pix = np.column_stack([cc, rr]).astype(np.float64)
@@ -277,9 +246,9 @@ def extract_refined_ab_initio_zone(
         if len(ll) < 2:
             continue
 
-        water_score = min(1.0, max(mean_wp, 0.88 if is_burned else 0.0, 0.55 if str_order >= 3 else 0.25))
+        water_score = mean_wp
         mean_elev = round(float(z_flat[core].mean()), 1)
-        sar_db = round(-(14.0 + min(8.0, math.log1p(area_val) * 0.62 + water_score * 2.5)), 1)
+        sar_db = None  # DEM/RGB do not measure radar backscatter.
 
         segments.append(
             {
@@ -315,7 +284,7 @@ def load_national_and_arequipa_vectors():
 
 def main():
     t0 = time.perf_counter()
-    print("[SQLITE PRECALC] Inicializando base de datos hydro_rivers.sqlite...")
+    print(f"[SQLITE PRECALC] Inicializando base de datos {DB_PATH}...")
     conn = sqlite3.connect(DB_PATH)
     init_db(conn)
     cur = conn.cursor()
@@ -453,7 +422,7 @@ def main():
             n_pts = len(pts)
             str_order = 5 if idx < 3 or n_pts > 180 else (4 if n_pts > 70 else 3)
             area_km2 = round(float(n_pts * (18.5 if str_order == 5 else 7.2)), 1)
-            sar_db = round(-(16.2 + min(5.2, str_order * 0.85)), 1)
+            sar_db = None
 
             all_rows.append(
                 {
@@ -462,7 +431,7 @@ def main():
                     "segment_name": f"{b_name} — Cauce Principal #{idx + 1}",
                     "strahler_order": str_order,
                     "area_km2": area_km2,
-                    "water_prob": 0.92 if str_order >= 4 else 0.78,
+                    "water_prob": 0.0,
                     "valley_depth_m": round(v_depth, 1),
                     "elev_m": round(elev, 1),
                     "sar_db": sar_db,

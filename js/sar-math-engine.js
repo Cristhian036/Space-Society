@@ -49,13 +49,13 @@ async function runMathematicalRiverExtraction(forceRecalc = false) {
   const btnTextEl = document.getElementById('btn-math-engine-text');
   if (btnTextEl) {
     btnTextEl.textContent = forceRecalc
-      ? '⚙️ Recalculando DEM y guardando en SQLite...'
-      : '⚡ Consultando SQLite precalculado...';
+      ? '⚙️ Recalculando red de drenaje...'
+      : 'Calculando / cargando red de drenaje...';
   }
   mathSetStatus(
     forceRecalc
       ? '<span class="text-amber-300 animate-pulse">⚙️ Ejecutando Priority-Flood + D8 + Filtro TPI y guardando en SQLite...</span>'
-      : '<span class="text-cyan-300 animate-pulse">⚡ Leyendo red hidrográfica desde SQLite (hydro_rivers.sqlite)...</span>'
+      : '<span class="text-cyan-300 animate-pulse">Cargando red de la zona; la primera descarga puede tardar...</span>'
   );
 
   const b = map.getBounds();
@@ -71,30 +71,47 @@ async function runMathematicalRiverExtraction(forceRecalc = false) {
   });
 
   const t0 = performance.now();
+  const request = mathAbort;
+  const timeout = setTimeout(() => request.abort('timeout'), 120000);
   try {
-    const resp = await fetch(`${HYDRO_API}?${params}`, { signal: mathAbort.signal });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const resp = await fetch(forceRecalc ? `${HYDRO_API}?${params}` : 'assets/river_reference_network.json', { signal: request.signal });
     const data = await resp.json();
+    if (!resp.ok) throw new Error(data.message || `HTTP ${resp.status}`);
+    if (request !== mathAbort || request.signal.aborted) return;
     if (data.status !== 'ok') throw new Error(data.message || 'error');
     mathLastResult = data;
     drawMathRivers(data);
 
+    if (data.source === 'reference_network') {
+      mathSetStatus(`<div class="text-yellow-300">Red de referencia completa: ${data.metrics.links} tramos. Amarillo: cauces de referencia; no confirma agua actual. Usa Recalcular solo para analizar una zona pequeña desde el terreno.</div>`);
+      return;
+    }
+
     const m = data.metrics;
     const ms = Math.round(performance.now() - t0);
-    const isSqlite = data.source === 'sqlite_precalculated';
+    const isSqlite = data.source === 'complete_result_cache';
     mathSetStatus(`
       <div class="space-y-0.5 text-[10px] font-mono">
-        <div class="text-emerald-400 font-bold">${isSqlite ? '⚡ SQLITE INSTANTÁNEO' : '✅ CÁLCULO GUARDADO EN SQLITE'} (${ms} ms) · ${m.links.toLocaleString()} tramos</div>
-        <div class="text-slate-300">Celdas DEM precalculadas: <span class="text-white">${(m.totalNodes / 1e6).toFixed(2)} M</span> · Strahler máx <span class="text-cyan-300">${m.maxStrahler}</span></div>
-        <div class="text-slate-400">Filtro de Valle TPI + Priority-Flood + D8 (Sin líneas por tierra seca)</div>
+        <div class="text-emerald-400 font-bold">${isSqlite ? 'CÁLCULO EN CACHÉ' : 'RED CALCULADA'} (${ms} ms) · ${m.links.toLocaleString()} tramos</div>
+        <div class="text-slate-300">Malla DEM: ${m.pixelMeters} m/píxel · Strahler máx ${m.maxStrahler}</div>
+        <div class="text-slate-400">Cian: indicio óptico · Gris discontinuo: drenaje inferido. Agua SAR sin confirmar.</div>
       </div>`);
   } catch (err) {
+    if (request.signal.reason === 'timeout') {
+      mathSetStatus('<span class="text-amber-300">El cálculo superó dos minutos. Reduce la zona o carga la red de referencia completa.</span>');
+      return;
+    }
     if (err.name === 'AbortError') return;
     console.error('Motor hidrológico:', err);
-    mathSetStatus(`<span class="text-rose-400">⚠️ No responde el microservicio (:8050). Ejecuta <code>python hydro_sar_microservice.py</code><br>${err.message}</span>`);
+    mathSetStatus('<span class="text-rose-400"></span>');
+    const status = document.getElementById('math-engine-status');
+    if (status) status.firstElementChild.textContent = `No se pudo cargar la red: ${err.message}. Servicio local: puerto 8050.`;
   } finally {
-    isMathComputing = false;
-    if (btnTextEl) btnTextEl.textContent = '⚡ Cargar Ríos desde SQLite (Instantáneo)';
+    clearTimeout(timeout);
+    if (request === mathAbort) {
+      isMathComputing = false;
+      if (btnTextEl) btnTextEl.textContent = 'Cargar red de drenaje';
+    }
   }
 }
 
@@ -102,24 +119,19 @@ function drawMathRivers(data) {
   if (!mathVectorGroup) return;
   mathVectorGroup.clearLayers();
 
-  const maxO = data.metrics.maxStrahler || 5;
-  const dryMinOrder = Math.max(3, maxO - 1);
-  const wetMinOrder = 1;
-
   const activePolygons =
     typeof currentMatchedScenes !== 'undefined'
       ? currentMatchedScenes.map((s) => s.footprint).filter((f) => f && f.length >= 3)
       : [];
   const clipToSar =
-    typeof detectionMode !== 'undefined' && detectionMode === 'strict_sar_intersect' && activePolygons.length > 0;
+    data.source !== 'reference_network' && typeof detectionMode !== 'undefined' && detectionMode === 'strict_sar_intersect';
 
   // Dibujar de menor a mayor orden para que los troncos principales queden encima
   const sorted = [...data.polylines].sort((a, b) => a.order - b.order);
 
   sorted.forEach((seg) => {
-    const wet = seg.water >= 0.22 || seg.isMainStem;
-    if (wet && seg.order < wetMinOrder) return;
-    if (!wet && (!mathShowDry || seg.order < dryMinOrder)) return;
+    const wet = seg.evidence === 'optical_proxy' && seg.water >= 0.22;
+    if (!wet && !mathShowDry && seg.evidence !== 'reference') return;
 
     const isMain = seg.isMainStem || seg.order >= 4;
     // Líneas finas, nítidas y bien perfiladas (1.0 px a 2.5 px)
@@ -131,9 +143,10 @@ function drawMathRivers(data) {
 
     const style = {
       renderer: mathCanvasRenderer,
-      color: wet ? (isMain ? '#00f5ff' : '#38bdf8') : '#94a3b8',
-      weight,
-      opacity: wet ? (isMain ? 0.96 : 0.84) : 0.4,
+      color: seg.evidence === 'reference' ? '#ffe600' : wet ? '#00f5ff' : '#e2e8f0',
+      weight: seg.evidence === 'reference' ? 2.8 : Math.max(weight, 1.5),
+      opacity: 0.95,
+      dashArray: seg.evidence === 'reference' || wet ? null : '4 4',
       lineCap: 'round',
       lineJoin: 'round',
       smoothFactor: 0.5
@@ -144,8 +157,7 @@ function drawMathRivers(data) {
         ? extractSubSegmentsInsideSar(seg.coords, activePolygons)
         : [seg.coords];
 
-    const vDepth = seg.valleyDepthMeters !== undefined ? `${seg.valleyDepthMeters} m` : '28.5 m';
-    const sarDb = seg.sarDb !== undefined ? `${seg.sarDb} dB` : '-17.4 dB';
+    const vDepth = Number.isFinite(seg.valleyDepthMeters) ? `${seg.valleyDepthMeters} m` : 'Sin medición';
     const titleName = seg.name || `Cauce Calculado (Strahler ${seg.order})`;
 
     parts.forEach((pts) => {
@@ -158,7 +170,8 @@ function drawMathRivers(data) {
             <strong>Área de Drenaje D8:</strong> <span class="font-mono text-cyan-300">${seg.areaKm2.toLocaleString()} km²</span><br>
             <strong>Profundidad de Incisión (TPI/HAND):</strong> <span class="font-mono text-amber-300">${vDepth}</span><br>
             <strong>Cota Media DEM:</strong> <span class="font-mono text-white">${seg.elev} msnm</span><br>
-            <strong>Firma SAR Estimada:</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${sarDb}</code>
+            <strong>Evidencia:</strong> ${seg.evidence === 'reference' ? 'Geometría de referencia; agua actual sin confirmar' : wet ? 'Indicio óptico de agua o vegetación ribereña' : 'Drenaje inferido del terreno'}<br>
+            <strong>Retrodispersión SAR:</strong> Sin medición en esta capa
           </div>`
         )
         .addTo(mathVectorGroup);
@@ -245,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof map === 'undefined' || !map) return;
     clearInterval(waitMap);
     map.on('moveend', () => {
-      if (!isMathEngineActive) return;
+      if (!isMathEngineActive || mathLastResult?.source === 'reference_network') return;
       clearTimeout(mathMoveTimer);
       mathMoveTimer = setTimeout(() => runMathematicalRiverExtraction(false), 180);
     });
@@ -320,8 +333,9 @@ async function renderNisarColabLayer() {
         <strong>Capa HDF5:</strong> <code class="text-slate-300 font-mono">science/LSAR/GCOV/grids/frequencyA/HHHH</code><br>
         <strong>Estiaje [10]:</strong> <span class="font-mono text-white">04-Sep-2026 (GCOV_029_147_A)</span><br>
         <strong>Crecida [25]:</strong> <span class="font-mono text-white">19-Ene-2026 (GCOV_010_147_A)</span><br>
-        <strong>Expansión Cauce (ΔdB &lt; -3.5):</strong> <span class="text-rose-400 font-bold">158.72 ha</span><br>
-        <strong>Llanura Saturada (ΔdB &gt; +3.5):</strong> <span class="text-cyan-300 font-bold">618.88 ha</span><br>
+        <strong>Señal reducida (estimación previa):</strong> <span class="text-rose-400 font-bold">158.72 ha</span><br>
+        <strong>Señal aumentada (estimación previa):</strong> <span class="text-cyan-300 font-bold">618.88 ha</span><br>
+        <strong>Estado:</strong> Sin validar; versiones de procesamiento diferentes.<br>
         <strong>ΔdB Promedio Valle:</strong> <span class="text-amber-300 font-mono">+0.89 dB</span>
       </div>
     `
@@ -359,7 +373,7 @@ async function renderNisarColabLayer() {
           `
           <div class="text-xs space-y-1 font-sans">
             <span class="${isOpenWater ? 'text-rose-400' : 'text-cyan-300'} font-bold block">
-              ${isOpenWater ? '🌊 AGUA ABIERTA NUEVA (ESPEJO RADAR ΔdB < -3.5)' : '🌾 LLANURA INUNDADA (DOBLE REBOTE L-BAND ΔdB > +3.5)'}
+              ${isOpenWater ? 'SEÑAL REDUCIDA: CAMBIO CANDIDATO SIN VALIDAR' : 'SEÑAL AUMENTADA: CAMBIO CANDIDATO SIN VALIDAR'}
             </span>
             <strong>Coordenada:</strong> <span class="font-mono">${pt.lat}, ${pt.lon}</span><br>
             <strong>Estiaje (04-Sep-2026):</strong> <span class="font-mono text-slate-300">${pt.db_estiaje} dB</span><br>

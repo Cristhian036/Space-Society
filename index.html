@@ -92,21 +92,21 @@
       <div class="bg-gradient-to-br from-emerald-950/60 via-slate-900 to-cyan-950/40 border-2 border-emerald-500/50 rounded-xl p-3 shadow-xl space-y-2">
         <div class="flex items-center justify-between">
           <label class="text-[11px] font-mono font-bold tracking-wider text-emerald-300 flex items-center gap-1.5 cursor-pointer">
-            <span>🧮</span> MOTOR MATEMÁTICO (D8 + PROFUNDIDAD + OTSU)
+            <span>🧮</span> RED DE DRENAJE (DEM + D8)
           </label>
           <input type="checkbox" id="toggle-math-engine" onchange="toggleMathRiverEngine()" class="accent-emerald-400 w-4 h-4 cursor-pointer">
         </div>
 
         <p class="text-[10px] text-slate-300 leading-snug">
-          Red de ríos <strong>precalculada en SQLite (<code class="text-emerald-300 font-mono">hydro_rivers.sqlite</code>, 7.27M celdas DEM)</strong> con <strong>Priority-Flood+&epsilon;</strong>, <strong>D8</strong> y <strong>Filtro de Valle TPI</strong> (rechaza sombras de cerros y trazos por tierra seca). Carga en <strong>&lt; 5 ms</strong>.
+          La carga inicial muestra todos los cauces de referencia en amarillo. Recalcular analiza solo la vista actual desde el terreno. <strong>Cian:</strong> indicio óptico de agua o vegetación ribereña. <strong>Gris discontinuo:</strong> ruta inferida. Esta capa no confirma agua por radar. El agua candidata GCOV se activa por separado y solo cubre las escenas importadas.
         </p>
 
         <div class="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
           <div>
             <span class="text-slate-400 block mb-0.5">Modo Consulta / DEM:</span>
             <select id="math-res-select" class="w-full bg-slate-950 border border-slate-700 rounded px-1.5 py-1 text-emerald-300 focus:outline-none">
-              <option value="standard">⚡ Rápido SQLite</option>
-              <option value="high" selected>🚀 Alta Fidelidad SQLite</option>
+              <option value="standard">Rápido</option>
+              <option value="high" selected>Alta resolución</option>
               <option value="ultra">🔥 Ultra Detalle (z11/z12)</option>
             </select>
           </div>
@@ -119,25 +119,25 @@
         <div class="grid grid-cols-1 gap-1">
           <label class="flex items-center gap-2 text-[10px] text-cyan-200 cursor-pointer bg-slate-950/70 px-2 py-1 rounded border border-slate-800" title="Usa la imagen satelital alineada al DEM junto con filtro TPI de fondo de valle">
             <input type="checkbox" id="math-burn-optical" checked class="accent-cyan-400 w-3.5 h-3.5">
-            <span>Filtro de Valle TPI + Stream Burning (Evita ir por tierra)</span>
+            <span>Usar indicios ópticos para orientar el drenaje</span>
           </label>
           <label class="flex items-center gap-2 text-[10px] text-slate-300 cursor-pointer bg-slate-950/70 px-2 py-1 rounded border border-slate-800">
             <input type="checkbox" id="math-show-dry" class="accent-slate-400 w-3.5 h-3.5">
-            <span>Mostrar quebradas secas secundarias (gris tenue)</span>
+            <span>Mostrar también rutas inferidas (gris discontinuo)</span>
           </label>
         </div>
 
         <label class="flex items-center gap-2 text-[10px] text-amber-200 cursor-pointer bg-slate-950/70 px-2 py-1 rounded border border-slate-800">
           <input type="checkbox" id="math-hide-preexisting" checked class="accent-amber-400 w-3.5 h-3.5">
-          <span>Ocultar capas base (Ver solo líneas finas SQLite)</span>
+          <span>Ocultar capas de referencia y simulación</span>
         </label>
 
         <div class="grid grid-cols-1 gap-1.5">
           <button onclick="document.getElementById('toggle-math-engine').checked = true; toggleMathRiverEngine();" class="w-full bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold py-1.5 px-2.5 rounded-lg text-xs transition shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5">
-            <span>⚡</span> <span id="btn-math-engine-text">Cargar Ríos desde SQLite (Instantáneo)</span>
+            <span>⚡</span> <span id="btn-math-engine-text">Cargar red completa de referencia</span>
           </button>
-          <button onclick="document.getElementById('toggle-math-engine').checked = true; runMathematicalRiverExtraction(true);" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40 font-semibold py-1 px-2 rounded-lg text-[10px] transition flex items-center justify-center gap-1" title="Ejecuta el cálculo pesado DEM en vivo solo si deseas recalcular esta zona y guardarla en SQLite">
-            <span>🔄</span> Recalcular DEM en Vivo y Guardar en SQLite
+          <button onclick="document.getElementById('toggle-math-engine').checked = true; isMathEngineActive = true; runMathematicalRiverExtraction(true);" class="w-full bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40 font-semibold py-1 px-2 rounded-lg text-[10px] transition flex items-center justify-center gap-1" title="Recalcular la red de la vista actual">
+            <span>🔄</span> Recalcular red de esta zona
           </button>
         </div>
 
@@ -146,24 +146,54 @@
         </div>
       </div>
 
-      <!-- 0.5 DATOS REALES NISAR L2 GCOV EXTRAÍDOS DEL GOOGLE COLAB (ΔdB HHHH VALLE MAJES-CAMANÁ) -->
+      <div class="bg-slate-900 border border-cyan-500/50 rounded-xl p-3 space-y-2">
+        <label class="text-xs text-cyan-300 font-bold flex items-center justify-between">
+          GCOV: AGUA POR FECHA
+          <input id="toggle-processed-gcov" type="checkbox" onchange="renderProcessedGcovLayer()" class="accent-cyan-400">
+        </label>
+        <label class="block text-xs text-cyan-200">Zona de estudio
+          <select id="gcov-region" onchange="if(this.value==='chili') map.fitBounds([[-16.425,-71.555],[-16.370,-71.515]]); renderProcessedGcovLayer();" class="w-full bg-slate-950 rounded p-1">
+            <option value="camana">Camaná — datos disponibles</option>
+            <option value="chili">Chili — centro de Arequipa (9 y 21 septiembre)</option>
+          </select>
+        </label>
+        <select id="processed-gcov-mode" onchange="renderProcessedGcovLayer()" class="w-full bg-slate-950 text-cyan-200 text-xs rounded p-1">
+          <option value="water_before">Agua candidata: fecha anterior</option>
+          <option value="water_after">Agua candidata: fecha posterior</option>
+          <option value="change">Cambio: persistente / nueva / retroceso</option>
+        </select>
+        <label class="block text-xs text-cyan-200">Método
+          <select id="gcov-method" onchange="renderProcessedGcovLayer()" class="w-full bg-slate-950 rounded p-1">
+            <option value="terrain" selected>SAR + terreno (experimental)</option>
+            <option value="sar">Solo SAR (comparación)</option>
+          </select>
+        </label>
+        <p class="text-[10px] text-slate-400">Filtro experimental: altura sobre drenaje ≤15 m y pendiente ≤7°. Puede omitir agua real; no es una máscara de sombras radar.</p>
+        <label class="block text-xs text-cyan-200">Umbral GCOV real: <output id="gcov-db-label">-14.0 dB</output>
+          <input id="gcov-db-slider" type="range" min="-26" max="-8" step="0.5" value="-14" class="w-full accent-cyan-400" oninput="document.getElementById('gcov-db-label').textContent=Number(this.value).toFixed(1)+' dB'; clearTimeout(window.gcovSliderTimer); window.gcovSliderTimer=setTimeout(renderProcessedGcovLayer,150)">
+        </label>
+        <p class="text-[10px] text-slate-400">Más negativo: más estricto. Cian = candidato por señal baja, también puede incluir sombras. Semillas 2 dB más oscuras.</p>
+        <button onclick="if (processedGcovOverlay) map.fitBounds(processedGcovOverlay.getBounds());" class="w-full bg-cyan-700 hover:bg-cyan-600 text-white text-xs rounded py-1">Centrar en datos GCOV</button>
+        <p id="processed-gcov-status" class="text-[10px] text-slate-300">Activa para cargar los resultados de los HDF5. El umbral y las fechas se muestran al seleccionar la capa.</p>
+      </div>
+
+      <!-- Exportaciones históricas del Colab; no equivalen a agua confirmada. -->
       <div class="bg-gradient-to-br from-indigo-950/70 via-slate-900 to-rose-950/30 border border-indigo-400/50 rounded-xl p-3 shadow-xl space-y-2">
         <div class="flex items-center justify-between">
           <label class="text-[11px] font-mono font-bold tracking-wider text-indigo-300 flex items-center gap-1.5 cursor-pointer">
-            <span>🛰️</span> COLAB NISAR L2 GCOV (&Delta;dB HHHH)
+            <span>🛰️</span> COLAB: CAMBIO PREVIO SIN VALIDAR
           </label>
           <input type="checkbox" id="toggle-nisar-colab" onchange="renderNisarColabLayer()" class="accent-indigo-400 w-4 h-4 cursor-pointer">
         </div>
 
         <p class="text-[10px] text-slate-300 leading-snug">
-          Matrices HDF5 reales <code class="text-indigo-300 font-mono">science/LSAR/GCOV/HHHH</code> (20m&times;20m, filtro mediana 3&times;3) alineadas en UTM 18S sobre <strong>Majes-Camaná</strong>:
-          <code class="text-rose-300 font-mono">&Delta;dB &lt; -3.5 dB</code> (Agua nueva espejo: <strong>158.72 ha</strong>) y <code class="text-cyan-300 font-mono">&Delta;dB &gt; +3.5 dB</code> (Doble rebote L-Band en llanura inundada: <strong>618.88 ha</strong>).
+          Exportaciones previas de <strong>Majes-Camaná</strong>. Las diferencias de señal son candidatas a cambio; necesitan revisar los originales y sus versiones de procesamiento. Esta capa no representa todo el río.
         </p>
 
         <div class="space-y-1 text-[10px] font-mono">
           <span class="text-slate-400 block">Capa Raster NISAR GCOV (350&times;350 px):</span>
           <select id="nisar-colab-mode" onchange="renderNisarColabLayer()" class="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-cyan-300 focus:outline-none">
-            <option value="water_mask" selected>🌊 Agua Nueva (-3.5 dB) + Llanura Inundada (+3.5 dB)</option>
+            <option value="water_mask" selected>Cambios candidatos de señal (sin validar)</option>
             <option value="delta_db">📊 Mapa Diferencial Puro ΔdB (Crecida - Estiaje)</option>
             <option value="crecida">🌧️ Crecida 19-Ene-2026 (GCOV_010_147_A HHHH)</option>
             <option value="estiaje">☀️ Estiaje 04-Sep-2026 (GCOV_029_147_A HHHH)</option>
@@ -184,28 +214,28 @@
       <div class="bg-gradient-to-br from-cyan-950/50 via-slate-900 to-slate-900 border border-cyan-500/40 rounded-xl p-3 shadow-lg space-y-2">
         <div class="flex items-center justify-between">
           <span class="text-[11px] font-mono font-bold tracking-wider text-cyan-300 flex items-center gap-1.5">
-            🔬 DETECTOR DE RÍOS POR SEÑAL SAR (&sigma;<sup>0</sup>)
+            RED DE REFERENCIA / SIMULACIÓN
           </span>
           <span class="text-[10px] bg-cyan-500/20 text-cyan-300 font-mono px-1.5 py-0.5 rounded border border-cyan-500/40" id="detected-rivers-count">
-            33 RÍOS DETECTADOS
+            33 RÍOS DE REFERENCIA
           </span>
         </div>
 
         <p class="text-[11px] text-slate-300 leading-snug">
-          Cruza en tiempo real todos los <strong>bloques SAR activos</strong> con las cuencas del Perú y extrae automáticamente los tramos de río cuya retrodispersión radar cae bajo el umbral de agua ($\sigma^0$).
+          Recorta geometrías de referencia según la cobertura de escenas. Los valores por ciclo son de demostración; este control no clasifica píxeles SAR. Para agua medida usa la capa GCOV por fecha y valida sus umbrales.
         </p>
 
         <!-- Threshold Slider -->
         <div class="bg-slate-950/90 p-2 rounded-lg border border-slate-800 space-y-1">
           <div class="flex justify-between text-[11px] font-mono">
-            <span class="text-slate-400">Umbral Detección Agua (&sigma;<sup>0</sup>):</span>
+            <span class="text-slate-400">Umbral de la simulación:</span>
             <span class="text-cyan-400 font-bold" id="threshold-db-label">-14.0 dB</span>
           </div>
           <input type="range" id="sar-threshold-slider" min="-21" max="-10" step="0.5" value="-14.0" class="w-full accent-cyan-400 cursor-pointer">
           <div class="flex justify-between text-[9px] font-mono text-slate-500">
-            <span>-21 dB (Solo Agua Libre)</span>
-            <span>-15 dB (Ríos)</span>
-            <span>-10 dB (Humedad/Todo)</span>
+            <span>-21 dB</span>
+            <span>Valores de demostración</span>
+            <span>-10 dB</span>
           </div>
         </div>
 
@@ -452,8 +482,10 @@
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <!-- Data & Logic -->
+  <script src="js/river-geometry.js"></script>
   <script src="js/arequipa-data.js"></script>
   <script src="js/sar-math-engine.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/gcov-layer.js"></script>
 </body>
 </html>

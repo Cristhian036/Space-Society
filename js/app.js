@@ -276,16 +276,7 @@ function getZoomScaleFactor() {
 
 // Algoritmo Geométrico: Ray-Casting Point-in-Polygon para saber si un vértice de río cae dentro de un Bloque SAR activo
 function isPointInPolygon(pt, poly) {
-  const lat = pt[0], lon = pt[1];
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const latI = poly[i][0], lonI = poly[i][1];
-    const latJ = poly[j][0], lonJ = poly[j][1];
-    const intersect = ((lonI > lon) !== (lonJ > lon)) &&
-      (lat < (latJ - latI) * (lon - lonI) / ((lonJ - lonI) || 1e-9) + latI);
-    if (intersect) inside = !inside;
-  }
-  return inside;
+  return RiverGeometry.pointInPolygon(pt, poly);
 }
 
 function isPointInsideAnyActiveSwath(pt, activePolygons) {
@@ -299,24 +290,7 @@ function isPointInsideAnyActiveSwath(pt, activePolygons) {
 // Particionar un segmento de río en sub-tramos que están FÍSICAMENTE DENTRO de los Bloques SAR activos
 function extractSubSegmentsInsideSar(segment, activePolygons) {
   if (detectionMode === 'global_all') return [segment];
-  const subSegments = [];
-  let currentSub = [];
-
-  for (let i = 0; i < segment.length; i++) {
-    const pt = segment[i];
-    if (isPointInsideAnyActiveSwath(pt, activePolygons)) {
-      currentSub.push(pt);
-    } else {
-      if (currentSub.length >= 2) {
-        subSegments.push(currentSub);
-      }
-      currentSub = [];
-    }
-  }
-  if (currentSub.length >= 2) {
-    subSegments.push(currentSub);
-  }
-  return subSegments;
+  return RiverGeometry.clipLineToPolygons(segment, activePolygons);
 }
 
 function getTrackDateForCycle(trackNum, cycle) {
@@ -414,7 +388,7 @@ function updateAllVisuals(flyToBasin = false) {
         <div class="text-xs space-y-1 font-sans">
           <span class="text-sky-400 font-bold block">💧 CAUCE HIDROGRÁFICO (${bData.name})</span>
           <strong>Código ANA:</strong> ${bData.anaCode}<br>
-          <strong>Firma SAR Actual:</strong> <code class="text-cyan-300 font-mono">${riverDb.toFixed(1)} dB</code>
+          <strong>Valor de simulación:</strong> <code class="text-cyan-300 font-mono">${riverDb.toFixed(1)} dB</code>
         </div>
       `).addTo(riverLayerGroup);
 
@@ -568,8 +542,8 @@ function updateAllVisuals(flyToBasin = false) {
   }
 
   // 4. ACTUALIZAR PANELES DE LECTURA SAR Y TELEMETRÍA
-  document.getElementById('detected-rivers-count').textContent = `${detectedRiverCount} RÍOS DETECTADOS (${totalDetectedVertices.toLocaleString()} PTS)`;
-  document.getElementById('header-active-stats').textContent = `${currentMatchedScenes.length} BLOQUES SAR · ${detectedRiverCount} RÍOS DETECTADOS`;
+  document.getElementById('detected-rivers-count').textContent = `${detectedRiverCount} RÍOS DE REFERENCIA (${totalDetectedVertices.toLocaleString()} PTS)`;
+  document.getElementById('header-active-stats').textContent = `${currentMatchedScenes.length} BLOQUES SAR · ${detectedRiverCount} RÍOS DE REFERENCIA`;
 
   const bMetrics = cycle.metrics[currentBasin];
   document.getElementById('pass-badge').textContent = `🛰️ ${cycle.label.toUpperCase()}`;
