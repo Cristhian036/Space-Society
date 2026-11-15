@@ -81,6 +81,7 @@ def prepare():
         geographic[name]=dest
     cfg=yaml.safe_load((UPSTREAM/'src/dswx_sar/defaults/dswx_ni.yaml').read_text())
     groups=cfg['runconfig']['groups']
+    groups['log_file']=str(OUT/'upstream.log')
     groups['primary_executable']['product_type']='dswx_ni'
     groups['input_file_group']['input_file_path']=[str(cropped)]
     ancillary=groups['dynamic_ancillary_file_group']
