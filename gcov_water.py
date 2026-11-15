@@ -45,7 +45,7 @@ FOCUS_BITS = {"HHHH": 256, "HVHV": 512, "VVVV": 1024, "VHVH": 2048}
 
 def exception_mask_keep(exceptions, polarization="HHHH"):
     """Pixels sin anomalias de entrada y con la polarizacion enfocada."""
-    ex = np.asarray(exceptions)
+    ex = np.asarray(exceptions, dtype=np.uint32)
     fill = np.iinfo(ex.dtype).max
     ex = np.where(ex == fill, 0, ex)
     keep = (ex & ANOMALY_BITS) == 0
