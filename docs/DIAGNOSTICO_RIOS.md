@@ -16,8 +16,8 @@ Se revisaron el anteproyecto PDF, el texto del reto, los archivos Python/JavaScr
 | --- | --- | --- |
 | `js/app.js`, consulta ASF, línea 750 | Busca Sentinel-1 GRD de enero-marzo de 2024; lee metadatos, huellas y URL de vista previa. | Este botón no descarga ni procesa matrices NISAR. Encontrar una escena significa cobertura, no detección de agua. |
 | `js/app.js`, línea 400; `js/arequipa-data.js` | Aplica un valor fijo de retrodispersión por ciclo a geometrías de ríos preexistentes. | El umbral del visor no está clasificando píxeles de radar. |
-| `hydro_sar_microservice.py` | Descarga elevación Terrarium e imágenes RGB de Esri, condiciona el DEM y calcula D8/acumulación/Strahler. | Infiere rutas de drenaje. El índice RGB también considera vegetación ribereña; no es una probabilidad de agua calibrada. |
-| `precalculate_to_sqlite.py` | Añade guías de ríos, poda tramos e inventaría resultados en SQLite. | La red combina inferencia topográfica y geometrías previas. |
+| `backend/hydro_sar_microservice.py` | Descarga elevación Terrarium e imágenes RGB de Esri, condiciona el DEM y calcula D8/acumulación/Strahler. | Infiere rutas de drenaje. El índice RGB también considera vegetación ribereña; no es una probabilidad de agua calibrada. |
+| `backend/precalculate_to_sqlite.py` | Añade guías de ríos, poda tramos e inventaría resultados en SQLite. | La red combina inferencia topográfica y geometrías previas. |
 | `js/sar-math-engine.js`, línea 299 | Superpone PNG locales de 350 × 350 píxeles con límites geográficos constantes. | La interfaz visualiza resultados exportados; no permite auditar o recalcular el procesamiento GCOV original. |
 
 ## 2. Causas comprobadas de cortes

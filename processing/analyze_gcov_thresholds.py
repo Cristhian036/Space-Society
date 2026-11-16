@@ -5,7 +5,13 @@ from pathlib import Path
 
 import numpy as np
 
-import gcov_water as g
+try:
+    import gcov_water as g
+except ImportError:
+    try:
+        from . import gcov_water as g
+    except ImportError:
+        import processing.gcov_water as g
 
 
 def analyze(paths, bbox, output, mask_values, thresholds=(-20, -18, -16, -14), margin=2):

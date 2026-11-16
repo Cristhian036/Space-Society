@@ -58,8 +58,17 @@ except ImportError:  # pragma: no cover
 
 PORT = 8050
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CACHE_DIR = os.path.join(BASE_DIR, ".dem_cache")
-DB_PATH = os.path.join(BASE_DIR, "hydro_rivers.sqlite")
+PROJECT_ROOT = (
+    os.path.abspath(os.path.join(BASE_DIR, ".."))
+    if os.path.exists(os.path.join(BASE_DIR, "..", "index.html"))
+    else BASE_DIR
+)
+CACHE_DIR = os.path.join(PROJECT_ROOT, ".dem_cache")
+DB_PATH = (
+    os.path.join(PROJECT_ROOT, "data", "hydro_rivers.sqlite")
+    if os.path.exists(os.path.join(PROJECT_ROOT, "data", "hydro_rivers.sqlite"))
+    else os.path.join(PROJECT_ROOT, "hydro_rivers.sqlite")
+)
 os.makedirs(CACHE_DIR, exist_ok=True)
 RESULT_CACHE_PATH = os.path.join(CACHE_DIR, "hydro_results_v3.sqlite")
 ALGORITHM_VERSION = "d8-connected-v3"

@@ -2,7 +2,7 @@
 
 Se conserva NISAR GCOV HH como evidencia de retrodispersión. Se añade un contexto topográfico independiente; no se queman líneas de referencia para fabricar agua.
 
-`python terrain_water.py` reproduce el procesamiento desde los recortes GCOV existentes y teselas DEM Terrarium a z12. La zona incluye un margen de una tesela para reducir efectos de borde. La procedencia nativa del mosaico Terrarium no se verificó por píxel: no se afirma que sea NASADEM puro.
+`python processing/terrain_water.py` reproduce el procesamiento desde los recortes GCOV existentes y teselas DEM Terrarium a z12. La zona incluye un margen de una tesela para reducir efectos de borde. La procedencia nativa del mosaico Terrarium no se verificó por píxel: no se afirma que sea NASADEM puro.
 
 El DEM se suaviza ligeramente, se condiciona con Priority-Flood, se calcula flujo D8 y acumulación. Las celdas con contribución >=1 km² definen drenaje modelado. HAND se calcula como diferencia de altura respecto de la primera celda de drenaje aguas abajo; salidas no resueltas permanecen sin datos. Se reproyectan HAND y pendiente a la malla GCOV.
 

@@ -6,7 +6,7 @@ Las correcciones geométricas ya están en el visor. Este flujo adicional utiliz
 
 ```powershell
 python -m pip install -r requirements.txt
-python hydro_sar_microservice.py
+python backend/hydro_sar_microservice.py
 ```
 
 En otra terminal:
@@ -28,7 +28,7 @@ Para mostrar agua candidata de enero y septiembre por separado, añadir `--indep
 ## 3. Inspeccionar calidad y coordenadas
 
 ```powershell
-python gcov_water.py --inspect "C:\ruta\escena.h5"
+python processing/gcov_water.py --inspect "C:\ruta\escena.h5"
 ```
 
 Revisar los códigos de `mask` en los atributos y en la especificación del producto. Al procesar HDF5 se exige `--mask-values` con los códigos aceptables revisados; no se supone que cualquier píxel oscuro sea válido. Si los atributos no describen los códigos, revisar la [especificación GCOV enlazada por ASF](https://nisar-docs.asf.alaska.edu/gcov/). Los códigos de la máscara no se deben adivinar.
@@ -44,7 +44,7 @@ Seleccionar muestras independientes de agua y tierra en el área y revisar la di
 El siguiente comando muestra la sintaxis. Sustituir archivos, umbrales y códigos de máscara por los valores revisados; los números entre marcadores no son parámetros calibrados:
 
 ```text
-python gcov_water.py --before "C:\ruta\anterior.h5" --after "C:\ruta\posterior.h5" --bbox -72.7578 -16.59663 -72.6922 -16.53337 --threshold-before UMBRAL_ANTERIOR --threshold-after UMBRAL_POSTERIOR --mask-values CODIGOS_VALIDOS --output output/gcov
+python processing/gcov_water.py --before "C:\ruta\anterior.h5" --after "C:\ruta\posterior.h5" --bbox -72.7578 -16.59663 -72.6922 -16.53337 --threshold-before UMBRAL_ANTERIOR --threshold-after UMBRAL_POSTERIOR --mask-values CODIGOS_VALIDOS --output output/gcov
 ```
 
 Para GeoTIFF de una banda se debe conservar CRS, transformación y NoData. Indicar `--units power` para potencia gamma0 o `--units db` si ya está convertido. HDF5 siempre se interpreta como potencia y se convierte con `10*log10` sobre valores positivos y válidos.
@@ -73,10 +73,10 @@ Validar umbrales con muestras que no se usaron para ajustarlos y reportar precis
 
 ## Análisis de sensibilidad sobre los originales
 
-`analyze_gcov_thresholds.py` compara -20, -18, -16 y -14 dB en cada fecha, con semillas 2 dB más oscuras. Exporta una figura y un JSON con áreas candidatas y porcentajes; no elige automáticamente el umbral correcto. Requiere `python -m pip install matplotlib`.
+`processing/analyze_gcov_thresholds.py` compara -20, -18, -16 y -14 dB en cada fecha, con semillas 2 dB más oscuras. Exporta una figura y un JSON con áreas candidatas y porcentajes; no elige automáticamente el umbral correcto. Requiere `python -m pip install matplotlib`.
 
 ```text
-python analyze_gcov_thresholds.py "C:\ruta\enero.h5" "C:\ruta\septiembre.h5" --bbox -72.7578 -16.59663 -72.6922 -16.53337 --mask-values 1
+python processing/analyze_gcov_thresholds.py "C:\ruta\enero.h5" "C:\ruta\septiembre.h5" --bbox -72.7578 -16.59663 -72.6922 -16.53337 --mask-values 1
 ```
 
 ## Verificaciones del código

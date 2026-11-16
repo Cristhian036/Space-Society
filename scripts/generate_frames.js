@@ -16,11 +16,13 @@ const MIME_TYPES = {
   '.sqlite': 'application/octet-stream'
 };
 
+const ROOT_DIR = path.resolve(__dirname, '..');
+
 // 1. In-process static server
 function startServer() {
   const server = http.createServer((req, res) => {
-    let filePath = path.join(__dirname, decodeURIComponent(req.url.split('?')[0]));
-    if (req.url === '/' || req.url === '') filePath = path.join(__dirname, 'index.html');
+    let filePath = path.join(ROOT_DIR, decodeURIComponent(req.url.split('?')[0]));
+    if (req.url === '/' || req.url === '') filePath = path.join(ROOT_DIR, 'index.html');
 
     fs.stat(filePath, (err, stats) => {
       if (err || !stats.isFile()) {
@@ -41,7 +43,7 @@ async function main() {
   const server = await startServer();
   console.log(`Server running at http://127.0.0.1:${PORT}`);
 
-  const outDir = path.join(__dirname, 'output', 'video_frames');
+  const outDir = path.join(ROOT_DIR, 'output', 'video_frames');
   fs.mkdirSync(outDir, { recursive: true });
 
   const browser = await chromium.launch({

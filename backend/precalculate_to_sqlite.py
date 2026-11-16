@@ -28,11 +28,27 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 
-import hydro_sar_microservice as h
+try:
+    import hydro_sar_microservice as h
+except ImportError:
+    try:
+        from . import hydro_sar_microservice as h
+    except ImportError:
+        import backend.hydro_sar_microservice as h
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "hydro_rivers_v3.sqlite")
-AREQUIPA_DATA_JS = os.path.join(BASE_DIR, "js", "arequipa-data.js")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = (
+    os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+    if os.path.exists(os.path.join(SCRIPT_DIR, "..", "index.html"))
+    else SCRIPT_DIR
+)
+DB_PATH = (
+    os.path.join(PROJECT_ROOT, "data", "hydro_rivers_v3.sqlite")
+    if os.path.exists(os.path.join(PROJECT_ROOT, "data"))
+    else os.path.join(PROJECT_ROOT, "hydro_rivers_v3.sqlite")
+)
+AREQUIPA_DATA_JS = os.path.join(PROJECT_ROOT, "js", "arequipa-data.js")
+BASE_DIR = PROJECT_ROOT
 
 
 def init_db(conn: sqlite3.Connection):

@@ -94,7 +94,7 @@ con este detector; no que el río esté seco.
 ## 5. Cómo reproducir
 
 ```powershell
-python gcov_rivers.py `
+python processing/gcov_rivers.py `
   --before "C:\Users\estro\Downloads\nasa\NISAR_L2_PR_GCOV_030_046_A_169_2005_DHDH_A_20260909T103221_20260909T103255_P05023_N_F_J_001.h5" `
   --after  "C:\Users\estro\Downloads\nasa\NISAR_L2_PR_GCOV_031_046_A_169_2005_DHDH_A_20260921T103221_20260921T103255_P05023_N_F_J_001.h5" `
   --bbox -71.40 -16.27 -71.27 -16.14 `
@@ -102,7 +102,7 @@ python gcov_rivers.py `
   --scale 600 --k-bright 3.5 --k-dark 3.5 --min-length 1500 --max-width 100 `
   --mask-values 1
 
-python validate_nisar.py --channels output/nisar_chili/channels.geojson `
+python processing/validate_nisar.py --channels output/nisar_chili/channels.geojson `
   --bbox -71.40 -16.27 -71.27 -16.14 --tolerance 120 `
   --output output/nisar_chili/validation.json
 ```

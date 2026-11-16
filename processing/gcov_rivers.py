@@ -29,7 +29,13 @@ from rasterio.transform import array_bounds
 from scipy import ndimage as ndi
 from skimage.morphology import skeletonize
 
-from gcov_water import read_raster
+try:
+    from gcov_water import read_raster
+except ImportError:
+    try:
+        from .gcov_water import read_raster
+    except ImportError:
+        from processing.gcov_water import read_raster
 
 DEFAULT_SCALE_M = 500.0
 DEFAULT_K_BRIGHT = 2.5

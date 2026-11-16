@@ -19,13 +19,13 @@ Configuración y procedencia se guardan en `output/opera_chili/`. Se restringe e
 Preparar:
 
 ```powershell
-python opera_experiment.py
+python opera/opera_experiment.py
 ```
 
 Ejecutar el código upstream y guardar su registro:
 
 ```powershell
-python opera_experiment.py --run
+python opera/opera_experiment.py --run
 ```
 
 El registro queda en `output/opera_chili/execution.log`. Un código de salida cero es necesario antes de presentar el experimento como completado. La ausencia de salida o una ejecución fallida no se interpreta como río seco. La clasificación, si se genera, requerirá contraste con imágenes independientes y muestras locales; no es validación automática ni producto oficial OPERA.
@@ -48,12 +48,12 @@ El siguiente experimento útil sería ampliar el contexto espacial y comprobar e
 - Entorno: `opera-environment.yml`, instalado aisladamente con micromamba en `.dem_cache/dswx-lite`.
 - Recortes auxiliares locales en `.dem_cache/opera_ancillary/`; las salidas y datos pesados están fuera de Git.
 - El script exige los HDF5 y datos auxiliares reales; no genera sustitutos si faltan.
-- `python opera_experiment.py --run` prepara y ejecuta el flujo; si termina correctamente exporta el diagnóstico. Los fallos quedan registrados y no se presentan como resultados válidos.
+- `python opera/opera_experiment.py --run` prepara y ejecuta el flujo; si termina correctamente exporta el diagnóstico. Los fallos quedan registrados y no se presentan como resultados válidos.
 - Verificación: 19 pruebas Python aprobadas, sintaxis JavaScript y comprobación de clases de los GeoTIFF generados.
 
 
 ## Camaná
 
-También se ejecutó `python opera_experiment.py --region camana --run` con el HDF5 del 4 de septiembre y auxiliares recortados para esa zona. Salida independiente: `output/opera_camana`. Terminó con código 0 y produjo WTR/BWTR/CONF/DIAG.
+También se ejecutó `python opera/opera_experiment.py --region camana --run` con el HDF5 del 4 de septiembre y auxiliares recortados para esa zona. Salida independiente: `output/opera_camana`. Terminó con código 0 y produjo WTR/BWTR/CONF/DIAG.
 
 El WTR contiene 40.807 píxeles de clase 0, 636 de clase 3 (vegetación inundada según el clasificador), 14.719 de clase 250 (excluidos por HAND) y 7 NoData. No detectó agua abierta y el registro vuelve a informar umbrales vacíos; el resultado se marca no utilizable. Las manchas violetas no constituyen una validación de inundación. El visor elige automáticamente el diagnóstico de Camaná o Chili según la zona.

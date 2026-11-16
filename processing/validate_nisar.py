@@ -29,7 +29,10 @@ def _densify(coords, step_m=60.0):
 
 
 def reference_points(bbox, regions=None):
-    net = json.loads(Path("assets/river_reference_network.json").read_text(encoding="utf-8"))
+    ref_path = Path("assets/river_reference_network.json")
+    if not ref_path.exists():
+        ref_path = Path(__file__).resolve().parent.parent / "assets" / "river_reference_network.json"
+    net = json.loads(ref_path.read_text(encoding="utf-8"))
     west, south, east, north = bbox
     pts = []
     for p in net["polylines"]:
