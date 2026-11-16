@@ -164,7 +164,45 @@ const I18N_DICT = {
     modal_card_2_title: "2. New Open Water (158.7 ha):",
     modal_card_2_note: "(Specular reflection)",
     modal_card_3_title: "3. Flooded Plain (618.9 ha):",
-    modal_card_3_note: "(L-Band double bounce in crops)"
+    modal_card_3_note: "(L-Band double bounce in crops)",
+
+    // Map Popups & SAR Tooltips
+    popup_cp_title: "📍 Critical Flood Checkpoint",
+    popup_basin: "Basin:",
+    popup_sar_status: "SAR Detection Status:",
+    popup_inside_swath: "DENTRO DE BLOQUE SAR ACTIVO",
+    popup_inside_swath_en: "INSIDE ACTIVE SAR SWATH",
+    popup_outside_swath: "Outside Threshold / Swath",
+    popup_vulnerability: "Vulnerability:",
+    popup_channel_base: "HYDROGRAPHIC CHANNEL",
+    popup_ana_code: "ANA Code:",
+    popup_sim_value: "Simulation Value:",
+    popup_detected_river: "🛰️ SAR RADAR DETECTED RIVER",
+    popup_orbital_phase: "Orbital Phase:",
+    popup_backscatter: "Measured Backscatter (σ⁰):",
+    popup_water_width: "Water Surface Width:",
+    popup_flooded_crop: "Flooded Agricultural Area:",
+    popup_national_network: "🇵🇪 PERU HYDROGRAPHIC NETWORK:",
+    popup_national_detected: "🛰️ NATIONAL RIVER DETECTED BY SAR:",
+    popup_region: "Hydrographic Region:",
+    popup_slope_zone: "Slope / Zone:",
+    popup_radar_signature: "Radar Signature (σ⁰):",
+    popup_extracted_pts: "Extracted GPS Points:",
+    popup_pts_inside_suffix: "vertices inside SAR swath",
+    popup_swath_title: "🛰️ ACTIVE SAR SWATH (NASA ASF)",
+    popup_track_label: "Orbital Track",
+    dir_ascending: "↗ ASCENDING (South → North)",
+    dir_descending: "↙ DESCENDING (North → South)",
+    popup_acq_date: "Acquisition Date:",
+    popup_mode_pol: "Mode / Polarization:",
+    btn_project_single: "Project this Swath",
+    btn_project_all: "Project All",
+    reader_view: "📡 View",
+    btn_hide_radar_images: "Hide Radar Images",
+    btn_project_radar_images: "Project Radar Raster on Swaths",
+    btn_querying_asf: "Querying NASA ASF API live...",
+    btn_asf_success: "NASA ASF Scenes Loaded in View",
+    btn_asf_cached: "Using Preloaded National Catalog (166 scenes)"
   },
 
   es: {
@@ -325,7 +363,45 @@ const I18N_DICT = {
     modal_card_2_title: "2. Agua Libre Nueva (158.7 ha):",
     modal_card_2_note: "(Reflexión especular)",
     modal_card_3_title: "3. Llanura Inundada (618.9 ha):",
-    modal_card_3_note: "(Doble rebote Banda L en cultivos)"
+    modal_card_3_note: "(Doble rebote Banda L en cultivos)",
+
+    // Map Popups & SAR Tooltips
+    popup_cp_title: "📍 Punto Crítico de Inundación",
+    popup_basin: "Cuenca:",
+    popup_sar_status: "Estado Detección SAR:",
+    popup_inside_swath: "DENTRO DE BLOQUE SAR ACTIVO",
+    popup_inside_swath_en: "DENTRO DE BLOQUE SAR ACTIVO",
+    popup_outside_swath: "Fuera de Umbral / Bloque",
+    popup_vulnerability: "Vulnerabilidad:",
+    popup_channel_base: "CAUCE HIDROGRÁFICO",
+    popup_ana_code: "Código ANA:",
+    popup_sim_value: "Valor de simulación:",
+    popup_detected_river: "🛰️ RÍO DETECTADO POR RADAR SAR",
+    popup_orbital_phase: "Fase Orbital:",
+    popup_backscatter: "Retrodispersión Medida (σ⁰):",
+    popup_water_width: "Ancho Lámina Agua:",
+    popup_flooded_crop: "Área Agrícola Inundada:",
+    popup_national_network: "🇵🇪 RED HIDROGRÁFICA DEL PERÚ:",
+    popup_national_detected: "🛰️ RÍO NACIONAL DETECTADO POR SAR:",
+    popup_region: "Región Hidrográfica:",
+    popup_slope_zone: "Vertiente / Zona:",
+    popup_radar_signature: "Firma Radar (σ⁰):",
+    popup_extracted_pts: "Puntos GPS Extraídos:",
+    popup_pts_inside_suffix: "vértices dentro del bloque SAR",
+    popup_swath_title: "🛰️ BLOQUE SAR ACTIVO (NASA ASF)",
+    popup_track_label: "Track Orbital",
+    dir_ascending: "↗ ASCENDENTE (Sur → Norte)",
+    dir_descending: "↙ DESCENDENTE (Norte → Sur)",
+    popup_acq_date: "Fecha Adquisición:",
+    popup_mode_pol: "Modo / Polarización:",
+    btn_project_single: "Proyectar este Bloque",
+    btn_project_all: "Proyectar Todos",
+    reader_view: "📡 Ver",
+    btn_hide_radar_images: "Ocultar Imágenes Radar",
+    btn_project_radar_images: "Proyectar Raster Radar en Bloques",
+    btn_querying_asf: "Consultando NASA ASF API en vivo...",
+    btn_asf_success: "Escenas NASA ASF Leídas en Vista",
+    btn_asf_cached: "Usando Catálogo Nacional Pre-cargado (166 escenas)"
   }
 };
 
@@ -438,6 +514,171 @@ function getCycleText(index) {
   return arr[index] || arr[0];
 }
 
+const CHECKPOINT_TRANSLATIONS = {
+  // Camaná - Majes - Colca
+  "Cañón del Colca - Aplao (Cuenca Media)": {
+    name: { en: "Colca Canyon - Aplao (Middle Basin)", es: "Cañón del Colca - Aplao (Cuenca Media)" },
+    sector: { en: "Castilla / Aplao", es: "Castilla / Aplao" },
+    vulnerability: {
+      en: "High (Torrential discharge surge and riverbank erosion)",
+      es: "Alta (Aumento de caudal torrencial y erosión de riberas)"
+    }
+  },
+  "Bocatoma y Defensas El Monte": {
+    name: { en: "El Monte Water Intake and Defenses", es: "Bocatoma y Defensas El Monte" },
+    sector: { en: "El Monte - Camaná", es: "El Monte - Camaná" },
+    vulnerability: {
+      en: "Very High (Levee breach at discharges > 400 m³/s)",
+      es: "Muy Alta (Ruptura de dique en crecidas > 400 m³/s)"
+    }
+  },
+  "Llanura Agrícola San Gregorio": {
+    name: { en: "San Gregorio Agricultural Plain", es: "Llanura Agrícola San Gregorio" },
+    sector: { en: "San Gregorio", es: "San Gregorio" },
+    vulnerability: {
+      en: "Critical (Floodplain rice paddies detected by SAR double bounce)",
+      es: "Crítica (Arrozales inundables detectados por doble rebote SAR)"
+    }
+  },
+  "Delta y Estuario Pucchún - Camaná": {
+    name: { en: "Pucchún Delta & Estuary - Camaná", es: "Delta y Estuario Pucchún - Camaná" },
+    sector: { en: "Pacific River Mouth", es: "Desembocadura Pacífico" },
+    vulnerability: {
+      en: "High (Coastal ponding and backwater drainage failure)",
+      es: "Alta (Anegamiento costero y retroceso de drenaje)"
+    }
+  },
+
+  // Quilca - Chili - Sihuas - Sumbay
+  "Cuenca Alta Sumbay - Aguada Blanca": {
+    name: { en: "Upper Sumbay Basin - Aguada Blanca", es: "Cuenca Alta Sumbay - Aguada Blanca" },
+    sector: { en: "Reservoir / Dams", es: "Reserva / Represas" },
+    vulnerability: {
+      en: "Medium-High (Andean rainfall accumulation and reservoir spill)",
+      es: "Media-Alta (Acumulación pluvial andina y descarga de embalses)"
+    }
+  },
+  "Sector Puente Grau - Valle Chilina": {
+    name: { en: "Grau Bridge Sector - Chilina Valley", es: "Sector Puente Grau - Valle Chilina" },
+    sector: { en: "Arequipa City", es: "Arequipa Ciudad" },
+    vulnerability: {
+      en: "High (Urban flow velocity surge)",
+      es: "Alta (Incremento de velocidad de flujo urbano)"
+    }
+  },
+  "Meandro Arancota - Tiabaya": {
+    name: { en: "Arancota - Tiabaya Meander", es: "Meandro Arancota - Tiabaya" },
+    sector: { en: "Arancota / Tiabaya", es: "Arancota / Tiabaya" },
+    vulnerability: {
+      en: "Very High (Urban riparian flooding and agricultural plot inundation)",
+      es: "Muy Alta (Inundación de ribera urbana y parcelas agrícolas)"
+    }
+  },
+  "Cañón de Uchumayo - Valle de Vítor": {
+    name: { en: "Uchumayo Canyon - Vítor Valley", es: "Cañón de Uchumayo - Valle de Vítor" },
+    sector: { en: "Uchumayo / Vítor", es: "Uchumayo / Vítor" },
+    vulnerability: {
+      en: "High (Hydraulic constriction and agricultural ponding)",
+      es: "Alta (Estrangulamiento hidráulico y anegamiento agrícola)"
+    }
+  },
+  "Desembocadura Río Quilca": {
+    name: { en: "Quilca River Mouth", es: "Desembocadura Río Quilca" },
+    sector: { en: "Quilca Coast", es: "Quilca - Costa" },
+    vulnerability: {
+      en: "High (Estuary overflow and lower valley flood)",
+      es: "Alta (Desborde en estuario y valle bajo)"
+    }
+  },
+
+  // Ocoña - Cotahuasi - Marán
+  "Confluencia Cotahuasi - Marán": {
+    name: { en: "Cotahuasi - Marán Confluence", es: "Confluencia Cotahuasi - Marán" },
+    sector: { en: "Upper Ocoña Basin", es: "Cuenca Alta Ocoña" },
+    vulnerability: {
+      en: "High (Extreme rainfall runoff in deep canyon)",
+      es: "Alta (Aporte pluvial extremo en cañón profundo)"
+    }
+  },
+  "Valle Bajo Santa Rita": {
+    name: { en: "Lower Santa Rita Valley", es: "Valle Bajo Santa Rita" },
+    sector: { en: "Santa Rita", es: "Santa Rita" },
+    vulnerability: {
+      en: "Very High (Failure of riverbank defenses and rice crops)",
+      es: "Muy Alta (Pérdida de defensas ribereñas y arrozales)"
+    }
+  },
+  "Puente Ocoña - Panamericana Sur": {
+    name: { en: "Ocoña Bridge - South Pan-American", es: "Puente Ocoña - Panamericana Sur" },
+    sector: { en: "Ocoña Bridge", es: "Puente Ocoña" },
+    vulnerability: {
+      en: "Critical (Risk to national highway infrastructure and crops)",
+      es: "Crítica (Riesgo a infraestructura vial nacional y cultivos)"
+    }
+  },
+
+  // Tambo - Coralaque
+  "Cañón Medio Río Tambo - Omate": {
+    name: { en: "Middle Tambo River Canyon - Omate", es: "Cañón Medio Río Tambo - Omate" },
+    sector: { en: "Middle Tambo Basin", es: "Cuenca Media Tambo" },
+    vulnerability: {
+      en: "High (Flood surge transit and lateral debris flows/huaicos)",
+      es: "Alta (Tránsito de avenidas y huaicos laterales)"
+    }
+  },
+  "Sector Cocachacra - Puente Santa Rosa": {
+    name: { en: "Cocachacra Sector - Santa Rosa Bridge", es: "Sector Cocachacra - Puente Santa Rosa" },
+    sector: { en: "Cocachacra", es: "Cocachacra" },
+    vulnerability: {
+      en: "Very High (Overflow across rice paddies and sugarcane fields)",
+      es: "Muy Alta (Desborde sobre campos de arroz y caña)"
+    }
+  },
+  "Llanura La Curva - Punta de Bombón": {
+    name: { en: "La Curva Plain - Punta de Bombón", es: "Llanura La Curva - Punta de Bombón" },
+    sector: { en: "Punta de Bombón", es: "Punta de Bombón" },
+    vulnerability: {
+      en: "High (Extensive inundation on deltaic coastal plain)",
+      es: "Alta (Inundación extensa en llanura deltaica)"
+    }
+  }
+};
+
+function getCheckpointTranslation(cp) {
+  if (!cp) return cp;
+  const lang = currentLang === 'es' ? 'es' : 'en';
+  const entry = CHECKPOINT_TRANSLATIONS[cp.name];
+  if (entry) {
+    return {
+      name: entry.name[lang] || cp.name,
+      sector: entry.sector[lang] || cp.sector,
+      vulnerability: entry.vulnerability[lang] || cp.vulnerability
+    };
+  }
+  for (const [k, val] of Object.entries(CHECKPOINT_TRANSLATIONS)) {
+    if (cp.name && (cp.name.includes(k) || k.includes(cp.name))) {
+      return {
+        name: val.name[lang] || cp.name,
+        sector: val.sector[lang] || cp.sector,
+        vulnerability: val.vulnerability[lang] || cp.vulnerability
+      };
+    }
+  }
+  return {
+    name: cp.name,
+    sector: cp.sector,
+    vulnerability: cp.vulnerability
+  };
+}
+
+function getFlightDirectionLabel(dir) {
+  const isAsc = (dir === 'ASCENDING' || (typeof dir === 'string' && dir.toUpperCase().includes('ASC')));
+  if (currentLang === 'es') {
+    return isAsc ? '↗ ASCENDENTE (Sur → Norte)' : '↙ DESCENDENTE (Norte → Sur)';
+  }
+  return isAsc ? '↗ ASCENDING (South → North)' : '↙ DESCENDING (North → South)';
+}
+
 function setLanguage(lang) {
   if (lang !== 'en' && lang !== 'es') lang = 'en';
   currentLang = lang;
@@ -476,12 +717,21 @@ function setLanguage(lang) {
     if (val) el.setAttribute('placeholder', val);
   });
 
+  // Cerrar cualquier popup activo para forzar re-renderizado en el nuevo idioma
+  if (typeof map !== 'undefined' && map && typeof map.closePopup === 'function') {
+    map.closePopup();
+  }
+
   // Actualizar visuales del mapa y telemetría activa
   if (typeof updateAllVisuals === 'function') {
     updateAllVisuals(false);
   }
   if (typeof renderTimelineControls === 'function') {
     renderTimelineControls();
+  }
+  if (typeof renderCalculatedRivers === 'function') {
+    const streamOrderInput = document.getElementById('dem-drainage-stream-order');
+    if (streamOrderInput) renderCalculatedRivers();
   }
 }
 

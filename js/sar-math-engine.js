@@ -157,8 +157,17 @@ function drawMathRivers(data) {
         ? extractSubSegmentsInsideSar(seg.coords, activePolygons)
         : [seg.coords];
 
-    const vDepth = Number.isFinite(seg.valleyDepthMeters) ? `${seg.valleyDepthMeters} m` : 'Sin medición';
-    const titleName = seg.name || `Cauce Calculado (Strahler ${seg.order})`;
+    const isEn = typeof currentLang !== 'undefined' ? currentLang === 'en' : true;
+    const vDepth = Number.isFinite(seg.valleyDepthMeters)
+      ? `${seg.valleyDepthMeters} m`
+      : (isEn ? 'No measurement' : 'Sin medición');
+    const titleName = seg.name || (isEn ? `Calculated Channel (Strahler ${seg.order})` : `Cauce Calculado (Strahler ${seg.order})`);
+    const strahlerNote = isEn ? (isMain ? 'Main Stem' : 'Canyon Tributary') : (isMain ? 'Tronco Principal' : 'Tributario de Cañón');
+    const evidenceText = seg.evidence === 'reference'
+      ? (isEn ? 'Reference geometry; current water unconfirmed' : 'Geometría de referencia; agua actual sin confirmar')
+      : wet
+        ? (isEn ? 'Optical evidence of water or riparian vegetation' : 'Indicio óptico de agua o vegetación ribereña')
+        : (isEn ? 'Drainage inferred from terrain' : 'Drenaje inferido del terreno');
 
     parts.forEach((pts) => {
       if (pts.length < 2) return;
@@ -166,12 +175,12 @@ function drawMathRivers(data) {
         .bindPopup(
           `<div class="text-xs space-y-1 font-sans">
             <span class="text-emerald-400 font-bold block">⚡ ${titleName}</span>
-            <strong>Orden de Strahler:</strong> <span class="font-mono text-white">${seg.order} (${isMain ? 'Tronco Principal' : 'Tributario de Cañón'})</span><br>
-            <strong>Área de Drenaje D8:</strong> <span class="font-mono text-cyan-300">${seg.areaKm2.toLocaleString()} km²</span><br>
-            <strong>Profundidad de Incisión (TPI/HAND):</strong> <span class="font-mono text-amber-300">${vDepth}</span><br>
-            <strong>Cota Media DEM:</strong> <span class="font-mono text-white">${seg.elev} msnm</span><br>
-            <strong>Evidencia:</strong> ${seg.evidence === 'reference' ? 'Geometría de referencia; agua actual sin confirmar' : wet ? 'Indicio óptico de agua o vegetación ribereña' : 'Drenaje inferido del terreno'}<br>
-            <strong>Retrodispersión SAR:</strong> Sin medición en esta capa
+            <strong>${isEn ? 'Strahler Order:' : 'Orden de Strahler:'}</strong> <span class="font-mono text-white">${seg.order} (${strahlerNote})</span><br>
+            <strong>${isEn ? 'D8 Drainage Area:' : 'Área de Drenaje D8:'}</strong> <span class="font-mono text-cyan-300">${seg.areaKm2.toLocaleString()} km²</span><br>
+            <strong>${isEn ? 'Incision Depth (TPI/HAND):' : 'Profundidad de Incisión (TPI/HAND):'}</strong> <span class="font-mono text-amber-300">${vDepth}</span><br>
+            <strong>${isEn ? 'Mean DEM Elevation:' : 'Cota Media DEM:'}</strong> <span class="font-mono text-white">${seg.elev} msnm</span><br>
+            <strong>${isEn ? 'Evidence:' : 'Evidencia:'}</strong> ${evidenceText}<br>
+            <strong>${isEn ? 'SAR Backscatter:' : 'Retrodispersión SAR:'}</strong> ${isEn ? 'No measurement in this layer' : 'Sin medición en esta capa'}
           </div>`
         )
         .addTo(mathVectorGroup);
@@ -317,6 +326,8 @@ async function renderNisarColabLayer() {
 
   nisarColabVectorGroup.clearLayers();
 
+  const isEn = typeof currentLang !== 'undefined' ? currentLang === 'en' : true;
+
   // Marco delimitador del recorte NISAR L2 GCOV (7 km x 7 km, 350x350 px @ 20m)
   L.rectangle(NISAR_COLAB_BOUNDS, {
     pane: 'criticalPane',
@@ -328,15 +339,15 @@ async function renderNisarColabLayer() {
     .bindPopup(
       `
       <div class="text-xs space-y-1 font-sans">
-        <span class="text-cyan-400 font-bold block">🛰️ VENTANA NISAR L2 GCOV (GOOGLE COLAB)</span>
-        <strong>Colección:</strong> <code class="text-emerald-300 font-mono">NISAR_L2_GCOV_PROVISIONAL_V1</code><br>
-        <strong>Capa HDF5:</strong> <code class="text-slate-300 font-mono">science/LSAR/GCOV/grids/frequencyA/HHHH</code><br>
-        <strong>Estiaje [10]:</strong> <span class="font-mono text-white">04-Sep-2026 (GCOV_029_147_A)</span><br>
-        <strong>Crecida [25]:</strong> <span class="font-mono text-white">19-Ene-2026 (GCOV_010_147_A)</span><br>
-        <strong>Señal reducida (estimación previa):</strong> <span class="text-rose-400 font-bold">158.72 ha</span><br>
-        <strong>Señal aumentada (estimación previa):</strong> <span class="text-cyan-300 font-bold">618.88 ha</span><br>
-        <strong>Estado:</strong> Sin validar; versiones de procesamiento diferentes.<br>
-        <strong>ΔdB Promedio Valle:</strong> <span class="text-amber-300 font-mono">+0.89 dB</span>
+        <span class="text-cyan-400 font-bold block">${isEn ? '🛰️ NISAR L2 GCOV WINDOW (GOOGLE COLAB)' : '🛰️ VENTANA NISAR L2 GCOV (GOOGLE COLAB)'}</span>
+        <strong>${isEn ? 'Collection:' : 'Colección:'}</strong> <code class="text-emerald-300 font-mono">NISAR_L2_GCOV_PROVISIONAL_V1</code><br>
+        <strong>${isEn ? 'HDF5 Layer:' : 'Capa HDF5:'}</strong> <code class="text-slate-300 font-mono">science/LSAR/GCOV/grids/frequencyA/HHHH</code><br>
+        <strong>${isEn ? 'Low Flow [10]:' : 'Estiaje [10]:'}</strong> <span class="font-mono text-white">04-Sep-2026 (GCOV_029_147_A)</span><br>
+        <strong>${isEn ? 'Flood Peak [25]:' : 'Crecida [25]:'}</strong> <span class="font-mono text-white">19-Jan-2026 (GCOV_010_147_A)</span><br>
+        <strong>${isEn ? 'Reduced Signal (prior estimate):' : 'Señal reducida (estimación previa):'}</strong> <span class="text-rose-400 font-bold">158.72 ha</span><br>
+        <strong>${isEn ? 'Increased Signal (prior estimate):' : 'Señal aumentada (estimación previa):'}</strong> <span class="text-cyan-300 font-bold">618.88 ha</span><br>
+        <strong>${isEn ? 'Status:' : 'Estado:'}</strong> ${isEn ? 'Unvalidated; different processing versions.' : 'Sin validar; versiones de procesamiento diferentes.'}<br>
+        <strong>${isEn ? 'Mean Valley ΔdB:' : 'ΔdB Promedio Valle:'}</strong> <span class="text-amber-300 font-mono">+0.89 dB</span>
       </div>
     `
     )
@@ -361,6 +372,10 @@ async function renderNisarColabLayer() {
     nisarColabTelemetryCache.sample_nodes.forEach((pt, idx) => {
       if (idx % 2 !== 0) return;
       const isOpenWater = pt.type === 'open_water';
+      const nodeTitle = isEn
+        ? (isOpenWater ? 'REDUCED SIGNAL: UNVALIDATED CANDIDATE CHANGE' : 'INCREASED SIGNAL: UNVALIDATED CANDIDATE CHANGE')
+        : (isOpenWater ? 'SEÑAL REDUCIDA: CAMBIO CANDIDATO SIN VALIDAR' : 'SEÑAL AUMENTADA: CAMBIO CANDIDATO SIN VALIDAR');
+
       L.circleMarker([pt.lat, pt.lon], {
         pane: 'criticalPane',
         radius: 4.5,
@@ -373,16 +388,17 @@ async function renderNisarColabLayer() {
           `
           <div class="text-xs space-y-1 font-sans">
             <span class="${isOpenWater ? 'text-rose-400' : 'text-cyan-300'} font-bold block">
-              ${isOpenWater ? 'SEÑAL REDUCIDA: CAMBIO CANDIDATO SIN VALIDAR' : 'SEÑAL AUMENTADA: CAMBIO CANDIDATO SIN VALIDAR'}
+              ${nodeTitle}
             </span>
-            <strong>Coordenada:</strong> <span class="font-mono">${pt.lat}, ${pt.lon}</span><br>
-            <strong>Estiaje (04-Sep-2026):</strong> <span class="font-mono text-slate-300">${pt.db_estiaje} dB</span><br>
-            <strong>Crecida (19-Ene-2026):</strong> <span class="font-mono text-white">${pt.db_crecida} dB</span><br>
-            <strong>Cambio Diferencial (ΔdB):</strong> <code class="bg-slate-800 px-1.5 py-0.5 rounded font-mono font-bold ${isOpenWater ? 'text-rose-300' : 'text-cyan-300'}">${pt.delta_db > 0 ? '+' : ''}${pt.delta_db} dB</code>
+            <strong>${isEn ? 'Coordinate:' : 'Coordenada:'}</strong> <span class="font-mono">${pt.lat}, ${pt.lon}</span><br>
+            <strong>${isEn ? 'Low Flow (04-Sep-2026):' : 'Estiaje (04-Sep-2026):'}</strong> <span class="font-mono text-slate-300">${pt.db_estiaje} dB</span><br>
+            <strong>${isEn ? 'Flood Peak (19-Jan-2026):' : 'Crecida (19-Ene-2026):'}</strong> <span class="font-mono text-white">${pt.db_crecida} dB</span><br>
+            <strong>${isEn ? 'Differential Change (ΔdB):' : 'Cambio Diferencial (ΔdB):'}</strong> <code class="bg-slate-800 px-1.5 py-0.5 rounded font-mono font-bold ${isOpenWater ? 'text-rose-300' : 'text-cyan-300'}">${pt.delta_db > 0 ? '+' : ''}${pt.delta_db} dB</code>
           </div>
         `
         )
         .addTo(nisarColabVectorGroup);
+    });
     });
   }
 }

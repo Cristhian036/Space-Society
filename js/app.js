@@ -397,6 +397,9 @@ function updateAllVisuals(flyToBasin = false) {
     let basinDetected = false;
 
     bData.riverSegments.forEach(seg => {
+      const bName = typeof getBasinName === 'function' ? getBasinName(bKey) : bData.name;
+      const cycleInfo = typeof getCycleText === 'function' ? getCycleText(currentCycleIndex) : cycle;
+
       // Trazo base del río (siempre visible para referencia geográfica)
       L.polyline(seg, {
         pane: 'riversTopPane',
@@ -407,9 +410,9 @@ function updateAllVisuals(flyToBasin = false) {
         lineJoin: 'round'
       }).bindPopup(`
         <div class="text-xs space-y-1 font-sans">
-          <span class="text-sky-400 font-bold block">💧 CAUCE HIDROGRÁFICO (${bData.name})</span>
-          <strong>Código ANA:</strong> ${bData.anaCode}<br>
-          <strong>Valor de simulación:</strong> <code class="text-cyan-300 font-mono">${riverDb.toFixed(1)} dB</code>
+          <span class="text-sky-400 font-bold block">💧 ${typeof t === 'function' ? t('popup_channel_base') : 'HYDROGRAPHIC CHANNEL'} (${bName})</span>
+          <strong>${typeof t === 'function' ? t('popup_ana_code') : 'ANA Code:'}</strong> ${bData.anaCode}<br>
+          <strong>${typeof t === 'function' ? t('popup_sim_value') : 'Simulation Value:'}</strong> <code class="text-cyan-300 font-mono">${riverDb.toFixed(1)} dB</code>
         </div>
       `).addTo(riverLayerGroup);
 
@@ -440,12 +443,12 @@ function updateAllVisuals(flyToBasin = false) {
             lineJoin: 'round'
           }).bindPopup(`
             <div class="text-xs space-y-1">
-              <span class="text-cyan-400 font-bold block">🛰️ RÍO DETECTADO POR RADAR SAR</span>
-              <strong>Cuenca:</strong> ${bData.name}<br>
-              <strong>Fase Orbital:</strong> ${cycle.label} (${cycle.phase})<br>
-              <strong>Retrodispersión Medida (&sigma;<sup>0</sup>):</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${riverDb.toFixed(1)} dB &le; ${sarThresholdDb} dB</code><br>
-              <strong>Ancho Lámina Agua:</strong> <span class="text-amber-400 font-bold">${cycle.metrics[bKey].width}</span><br>
-              <strong>Área Agrícola Inundada:</strong> <span class="text-rose-400 font-bold">${cycle.metrics[bKey].ha}</span>
+              <span class="text-cyan-400 font-bold block">${typeof t === 'function' ? t('popup_detected_river') : '🛰️ SAR RADAR DETECTED RIVER'}</span>
+              <strong>${typeof t === 'function' ? t('popup_basin') : 'Basin:'}</strong> ${bName}<br>
+              <strong>${typeof t === 'function' ? t('popup_orbital_phase') : 'Orbital Phase:'}</strong> ${cycle.label} (${cycleInfo.phase || cycle.phase})<br>
+              <strong>${typeof t === 'function' ? t('popup_backscatter') : 'Measured Backscatter (σ⁰):'}</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${riverDb.toFixed(1)} dB &le; ${sarThresholdDb} dB</code><br>
+              <strong>${typeof t === 'function' ? t('popup_water_width') : 'Water Surface Width:'}</strong> <span class="text-amber-400 font-bold">${cycle.metrics[bKey].width}</span><br>
+              <strong>${typeof t === 'function' ? t('popup_flooded_crop') : 'Flooded Agricultural Area:'}</strong> <span class="text-rose-400 font-bold">${cycle.metrics[bKey].ha}</span>
             </div>
           `).addTo(floodLayerGroup);
 
@@ -481,6 +484,12 @@ function updateAllVisuals(flyToBasin = false) {
         }).addTo(criticalPointsGroup);
       }
 
+      const trCp = typeof getCheckpointTranslation === 'function' ? getCheckpointTranslation(cp) : cp;
+      const bName = typeof getBasinName === 'function' ? getBasinName(bKey) : bData.name;
+      const sarStatusLabel = insideSwath && passesThreshold
+        ? (typeof currentLang !== 'undefined' && currentLang === 'en' ? 'INSIDE ACTIVE SAR SWATH' : (typeof t === 'function' ? t('popup_inside_swath') : 'DENTRO DE BLOQUE SAR ACTIVO'))
+        : (typeof t === 'function' ? t('popup_outside_swath') : 'Outside Threshold / Swath');
+
       L.circleMarker(cp.coords, {
         pane: 'criticalPane',
         radius: isCurrent ? 5.5 : 4.5,
@@ -490,10 +499,10 @@ function updateAllVisuals(flyToBasin = false) {
         weight: 1.5
       }).bindPopup(`
         <div class="text-xs space-y-1">
-          <span class="font-bold text-rose-400 block">📍 ${cp.name}</span>
-          <strong>Cuenca:</strong> ${bData.name}<br>
-          <strong>Estado Detección SAR:</strong> <span class="font-bold ${insideSwath && passesThreshold ? 'text-cyan-300' : 'text-slate-400'}">${insideSwath && passesThreshold ? 'DENTRO DE BLOQUE SAR ACTIVO' : 'Fuera de Umbral/Bloque'}</span><br>
-          <strong>Vulnerabilidad:</strong> ${cp.vulnerability}
+          <span class="font-bold text-rose-400 block">📍 ${trCp.name}</span>
+          <strong>${typeof t === 'function' ? t('popup_basin') : 'Basin:'}</strong> ${bName}<br>
+          <strong>${typeof t === 'function' ? t('popup_sar_status') : 'SAR Detection Status:'}</strong> <span class="font-bold ${insideSwath && passesThreshold ? 'text-cyan-300' : 'text-slate-400'}">${sarStatusLabel}</span><br>
+          <strong>${typeof t === 'function' ? t('popup_vulnerability') : 'Vulnerability:'}</strong> ${trCp.vulnerability}
         </div>
       `).addTo(criticalPointsGroup);
     });
@@ -518,9 +527,9 @@ function updateAllVisuals(flyToBasin = false) {
           lineJoin: 'round'
         }).bindPopup(`
           <div class="text-xs space-y-1">
-            <span class="text-sky-400 font-bold block">🇵🇪 RED HIDROGRÁFICA DEL PERÚ: ${natRiver.name}</span>
-            <strong>Región Hidrográfica:</strong> ${natRiver.zone}<br>
-            <strong>Firma Radar (&sigma;<sup>0</sup>):</strong> <code class="text-cyan-300 font-mono">${effectiveDb} dB</code>
+            <span class="text-sky-400 font-bold block">${typeof t === 'function' ? t('popup_national_network') : '🇵🇪 PERU HYDROGRAPHIC NETWORK:'} ${natRiver.name}</span>
+            <strong>${typeof t === 'function' ? t('popup_region') : 'Hydrographic Region:'}</strong> ${natRiver.zone}<br>
+            <strong>${typeof t === 'function' ? t('popup_radar_signature') : 'Radar Signature (σ⁰):'}</strong> <code class="text-cyan-300 font-mono">${effectiveDb} dB</code>
           </div>
         `).addTo(riverLayerGroup);
 
@@ -539,10 +548,10 @@ function updateAllVisuals(flyToBasin = false) {
               lineJoin: 'round'
             }).bindPopup(`
               <div class="text-xs space-y-1">
-                <span class="text-cyan-400 font-bold block">🛰️ RÍO NACIONAL DETECTADO POR SAR: ${natRiver.name}</span>
-                <strong>Vertiente / Zona:</strong> ${natRiver.zone}<br>
-                <strong>Firma Radar (&sigma;<sup>0</sup>):</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${effectiveDb} dB &le; ${sarThresholdDb} dB</code><br>
-                <strong>Puntos GPS Extraídos:</strong> ${sub.length} vértices dentro del bloque SAR
+                <span class="text-cyan-400 font-bold block">${typeof t === 'function' ? t('popup_national_detected') : '🛰️ NATIONAL RIVER DETECTED BY SAR:'} ${natRiver.name}</span>
+                <strong>${typeof t === 'function' ? t('popup_slope_zone') : 'Slope / Zone:'}</strong> ${natRiver.zone}<br>
+                <strong>${typeof t === 'function' ? t('popup_radar_signature') : 'Radar Signature (σ⁰):'}</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${effectiveDb} dB &le; ${sarThresholdDb} dB</code><br>
+                <strong>${typeof t === 'function' ? t('popup_extracted_pts') : 'Extracted GPS Points:'}</strong> ${sub.length} ${typeof t === 'function' ? t('popup_pts_inside_suffix') : 'vertices inside SAR swath'}
               </div>
             `).addTo(floodLayerGroup);
 
@@ -626,7 +635,16 @@ function renderOrbitalSwaths(scenes) {
   scenes.forEach(scene => {
     if (!scene.footprint || scene.footprint.length < 3) return;
     const color = trackColors[scene.track] || '#38bdf8';
-    const dirArrow = scene.flightDirection === 'ASCENDING' ? '↗ ASCENDENTE (Sur → Norte)' : '↙ DESCENDENTE (Norte → Sur)';
+    const dirArrow = typeof getFlightDirectionLabel === 'function'
+      ? getFlightDirectionLabel(scene.flightDirection)
+      : (scene.flightDirection === 'ASCENDING' ? '↗ ASCENDING (South → North)' : '↙ DESCENDING (North → South)');
+
+    const titleSwath = typeof t === 'function' ? t('popup_swath_title') : '🛰️ ACTIVE SAR SWATH (NASA ASF)';
+    const labelTrack = typeof t === 'function' ? t('popup_track_label') : 'Orbital Track';
+    const labelDate = typeof t === 'function' ? t('popup_acq_date') : 'Acquisition Date:';
+    const labelMode = typeof t === 'function' ? t('popup_mode_pol') : 'Mode / Polarization:';
+    const btnProjectThis = typeof t === 'function' ? t('btn_project_single') : 'Project this Swath';
+    const btnProjectAll = typeof t === 'function' ? t('btn_project_all') : 'Project All';
 
     const poly = L.polygon(scene.footprint, {
       pane: 'swathPane',
@@ -638,17 +656,17 @@ function renderOrbitalSwaths(scenes) {
       fillOpacity: currentTrackFilter === 'peru_all' ? 0.04 : 0.06
     }).bindPopup(`
       <div class="text-xs space-y-1.5 font-sans">
-        <span class="text-indigo-400 font-bold block">🛰️ BLOQUE SAR ACTIVO (NASA ASF)</span>
-        <strong>Track Orbital:</strong> <span class="font-mono text-white">Track ${scene.track} (${dirArrow})</span><br>
-        <strong>Fecha Adquisición:</strong> <span class="font-mono text-cyan-300">${scene.startTime || scene.date}</span><br>
-        <strong>Modo / Polarización:</strong> <span class="font-mono">${scene.beamMode || 'IW'} (${scene.polarization || 'VV+VH'})</span><br>
+        <span class="text-indigo-400 font-bold block">${titleSwath}</span>
+        <strong>${labelTrack}:</strong> <span class="font-mono text-white">Track ${scene.track} (${dirArrow})</span><br>
+        <strong>${labelDate}</strong> <span class="font-mono text-cyan-300">${scene.startTime || scene.date}</span><br>
+        <strong>${labelMode}</strong> <span class="font-mono">${scene.beamMode || 'IW'} (${scene.polarization || 'VV+VH'})</span><br>
         <strong>Granule ID:</strong> <code class="text-[10px] bg-slate-800 px-1 py-0.5 rounded block truncate">${scene.granuleName}</code>
         <div class="pt-1 flex gap-1.5">
-          <button onclick="projectSingleScene('${scene.granuleName}')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded text-[11px] font-medium flex-1">
-            📡 Proyectar este Bloque
+          <button onclick="projectSingleScene('${scene.granuleName}')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded text-[11px] font-medium flex-1 cursor-pointer">
+            📡 ${btnProjectThis}
           </button>
-          <button onclick="toggleRealSarImageOverlay(true)" class="bg-cyan-700 hover:bg-cyan-600 text-white px-2 py-1 rounded text-[11px] font-medium flex-1">
-            🌐 Proyectar Todos
+          <button onclick="toggleRealSarImageOverlay(true)" class="bg-cyan-700 hover:bg-cyan-600 text-white px-2 py-1 rounded text-[11px] font-medium flex-1 cursor-pointer">
+            🌐 ${btnProjectAll}
           </button>
         </div>
       </div>
@@ -672,7 +690,7 @@ function renderOrbitalSwaths(scenes) {
       item.innerHTML = `
         <span class="text-cyan-300 font-bold">T${sc.track} (${sc.flightDirection ? sc.flightDirection[0] : 'S'})</span>
         <span class="text-slate-400 truncate max-w-[130px]" title="${sc.granuleName}">${sc.granuleName.substring(17, 32)}</span>
-        <span class="text-indigo-400 hover:underline">📡 Ver</span>
+        <span class="text-indigo-400 hover:underline">${typeof t === 'function' ? t('reader_view') : '📡 View'}</span>
       `;
       readerList.appendChild(item);
     });
@@ -714,7 +732,12 @@ function showAllMatchedSceneOverlays() {
 
   isRealSarOverlayActive = true;
   const btnText = document.getElementById('btn-real-sar-text');
-  if (btnText) btnText.textContent = `Ocultar Imágenes Radar (${scenesToProject.length} Activas)`;
+  if (btnText) {
+    const isEn = typeof currentLang !== 'undefined' ? currentLang === 'en' : true;
+    btnText.textContent = isEn
+      ? `Hide Radar Images (${scenesToProject.length} Active)`
+      : `Ocultar Imágenes Radar (${scenesToProject.length} Activas)`;
+  }
 }
 
 function projectSingleScene(granuleName) {
@@ -742,7 +765,10 @@ function projectSingleScene(granuleName) {
 
   isRealSarOverlayActive = true;
   const btnText = document.getElementById('btn-real-sar-text');
-  if (btnText) btnText.textContent = 'Ocultar Imágenes Radar Activas';
+  if (btnText) {
+    const isEn = typeof currentLang !== 'undefined' ? currentLang === 'en' : true;
+    btnText.textContent = isEn ? 'Hide Active Radar Images' : 'Ocultar Imágenes Radar Activas';
+  }
 }
 
 function toggleRealSarImageOverlay(forceOn = false) {
@@ -750,7 +776,9 @@ function toggleRealSarImageOverlay(forceOn = false) {
     realSarOverlayGroup.clearLayers();
     isRealSarOverlayActive = false;
     const btnText = document.getElementById('btn-real-sar-text');
-    if (btnText) btnText.textContent = 'Proyectar Imágenes Radar en Bloques Activos';
+    if (btnText) {
+      btnText.textContent = typeof t === 'function' ? t('btn_project_raster') : 'Project Radar Raster on Swaths';
+    }
   } else {
     showAllMatchedSceneOverlays();
   }
@@ -760,7 +788,9 @@ function toggleRealSarImageOverlay(forceOn = false) {
 async function fetchLiveAsfForCurrentView() {
   if (!map) return;
   const btnText = document.getElementById('btn-live-asf-text');
-  if (btnText) btnText.textContent = 'Consultando NASA ASF API en vivo...';
+  if (btnText) {
+    btnText.textContent = typeof t === 'function' ? t('btn_querying_asf') : 'Querying NASA ASF API live...';
+  }
 
   const b = map.getBounds();
   const minLon = Math.max(-81.5, b.getWest()).toFixed(2);
@@ -806,10 +836,20 @@ async function fetchLiveAsfForCurrentView() {
     });
 
     liveFetchedAsfScenes = parsed;
-    if (btnText) btnText.textContent = `✅ ${parsed.length} Escenas NASA ASF Leídas en Vista`;
+    if (btnText) {
+      const isEn = typeof currentLang !== 'undefined' ? currentLang === 'en' : true;
+      btnText.textContent = isEn
+        ? `✅ ${parsed.length} NASA ASF Scenes Loaded in View`
+        : `✅ ${parsed.length} Escenas NASA ASF Leídas en Vista`;
+    }
     updateAllVisuals(false);
   } catch (err) {
-    if (btnText) btnText.textContent = '⚠️ Usando Catálogo Nacional Pre-cargado (166 escenas)';
+    if (btnText) {
+      const isEn = typeof currentLang !== 'undefined' ? currentLang === 'en' : true;
+      btnText.textContent = isEn
+        ? '⚠️ Using Preloaded National Catalog (166 scenes)'
+        : '⚠️ Usando Catálogo Nacional Pre-cargado (166 escenas)';
+    }
   }
 }
 
