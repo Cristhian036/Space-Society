@@ -211,6 +211,16 @@ python descargar_nisar_arequipa.py --zone chili --dest data/nisar
 Developed by **Space Society** for the **NASA Space Apps Challenge**:
 * **Specialization**: Radar Remote Sensing, GIS Hydrology & Satellite Telemetry.
 * **Target Mission**: NASA-ISRO Synthetic Aperture Radar (NISAR).
+* **Team Roster & Architecture Diagram**: See complete roles and Mermaid workflow in [docs/TEAM.md](file:///c:/Users/dany/Downloads/NASA/V06/docs/TEAM.md).
+
+| Member | Specialization & Project Role |
+| :--- | :--- |
+| **Cristhian Diego Huaracha Ventura** | Lead Data Engineer (Mathematical Top-Hat & Decibel Calibration) |
+| **Diego Sebastian Gonzales Gomez** | Full Stack Developer (FastAPI Microservice & System Architecture) |
+| **Neftaly Pacco Moscoso** | Frontend Developer (Tactical GIS Command Center & Leaflet UI) |
+| **Yinyer Alejandra Quispe Rodriguez** | Data Acquisition Lead (Hydrological Research & Scene Cataloging) |
+| **Lucia Fernanda Cayo Cayo** | UX Writer & Technical Documentation Lead (Bilingual Engine & Pitch Deck) |
+| **Michael Rudy Villafuerte Cjuno** | Satellite Radar Specialist (NISAR L2 GCOV Ingestion & Polarimetry) |
 
 ---
 
