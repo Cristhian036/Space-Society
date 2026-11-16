@@ -210,6 +210,42 @@
         <p id="processed-gcov-status" class="text-[10px] text-slate-300">Activa para cargar los resultados de los HDF5. El umbral y las fechas se muestran al seleccionar la capa.</p>
       </div>
 
+      <!-- NUEVO: MONITOREO VOLCÁNICO Y LAHARES -->
+      <div class="bg-gradient-to-br from-red-950/60 via-slate-900 to-amber-950/40 border border-red-500/50 rounded-xl p-3 shadow-xl space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="text-xs text-red-300 font-bold flex items-center gap-1.5 cursor-pointer">
+            <span>🌋</span> MONITOREO VOLCÁNICO Y LAHARES
+          </label>
+          <input type="checkbox" id="toggle-volcanoes" onchange="toggleVolcanoLayer()" class="accent-red-500 w-4 h-4 cursor-pointer">
+        </div>
+        <p class="text-[10px] text-slate-300 leading-snug">
+          Mapeo de edificios volcánicos (Misti, Sabancaya, Chachani, Ubinas), <strong>zonas de peligro INGEMMET</strong> y <strong>corredores de lahares</strong> que drenan hacia las torrenteras urbanas y el Río Chili.
+        </p>
+
+        <!-- Botones de enfoque rápido -->
+        <div class="grid grid-cols-2 gap-1.5 pt-0.5">
+          <button onclick="focusVolcano('misti')" class="bg-red-700/80 hover:bg-red-600 text-white font-semibold py-1 px-2 rounded text-[10px] transition flex items-center justify-center gap-1 shadow">
+            <span>🌋</span> Enfocar Misti (5,822 m)
+          </button>
+          <button onclick="focusVolcano('sabancaya')" class="bg-orange-700/80 hover:bg-orange-600 text-white font-semibold py-1 px-2 rounded text-[10px] transition flex items-center justify-center gap-1 shadow">
+            <span>💨</span> Sabancaya (Activo)
+          </button>
+        </div>
+
+        <div class="bg-slate-950/80 p-2 rounded border border-slate-800 text-[10px] font-mono space-y-1">
+          <div class="flex justify-between text-slate-400">
+            <span>Telemetría Radar NISAR:</span>
+            <span class="text-emerald-400 font-bold">Banda L GCOV</span>
+          </div>
+          <div class="text-[9px] text-slate-400 flex items-center gap-2">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-red-500"></span> Alto Peligro (7 km)
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-orange-500"></span> Peligro Lahar (15 km)
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400"></span> Cenizas (28 km)
+          </div>
+        </div>
+        <p id="volcano-status-text" class="text-[9px] text-slate-400 italic">Haz clic en 'Enfocar Misti' o activa la casilla para ver los conos y las torrenteras.</p>
+      </div>
+
       <!-- Exportaciones históricas del Colab; no equivalen a agua confirmada. -->
       <div class="bg-gradient-to-br from-indigo-950/70 via-slate-900 to-rose-950/30 border border-indigo-400/50 rounded-xl p-3 shadow-xl space-y-2">
         <div class="flex items-center justify-between">
@@ -524,5 +560,6 @@
   <script src="js/app.js"></script>
   <script src="js/gcov-layer.js"></script>
   <script src="js/nisar-rivers.js"></script>
+  <script src="js/volcano-layer.js"></script>
 </body>
 </html>
