@@ -203,25 +203,25 @@ function renderTimelineControls() {
   ORBITAL_CYCLES.forEach((cyc, idx) => {
     const isActive = idx === currentCycleIndex;
     const btn = document.createElement('button');
-    btn.className = `px-2 py-1 rounded-lg border text-left transition flex flex-col justify-between ${
+    btn.className = `px-1.5 py-1 rounded border text-left transition flex flex-col justify-between cursor-pointer ${
       isActive
-        ? 'bg-cyan-950/90 border-cyan-400 text-white shadow-md shadow-cyan-500/20'
-        : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:bg-slate-800/70 hover:text-slate-200'
+        ? 'bg-[#151c25] border-water text-[#f1f5f9]'
+        : 'bg-base border-borderline text-[#94a3b8] hover:bg-[#151c25] hover:text-[#f1f5f9]'
     }`;
     btn.onclick = () => selectOrbitalCycle(idx);
 
-    let dotColor = 'bg-emerald-400';
-    if (cyc.floodIntensity >= 0.8) dotColor = 'bg-rose-500';
-    else if (cyc.floodIntensity >= 0.5) dotColor = 'bg-amber-400';
-    else if (cyc.floodIntensity >= 0.15) dotColor = 'bg-yellow-400';
+    let dotColor = 'bg-ok';
+    if (cyc.floodIntensity >= 0.8) dotColor = 'bg-danger';
+    else if (cyc.floodIntensity >= 0.5) dotColor = 'bg-crops';
+    else if (cyc.floodIntensity >= 0.15) dotColor = 'bg-crops';
 
     btn.innerHTML = `
       <div class="flex items-center justify-between w-full">
-        <span class="text-[10px] font-mono font-bold ${isActive ? 'text-cyan-300' : 'text-slate-400'}">+${cyc.dayOffset}d</span>
-        <span class="w-2 h-2 rounded-full ${dotColor}"></span>
+        <span class="text-[9.5px] font-mono font-semibold ${isActive ? 'text-water' : 'text-[#64748b]'}">+${cyc.dayOffset}d</span>
+        <span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span>
       </div>
-      <div class="text-[10px] font-medium truncate mt-0.5">${cyc.shortDate.split(' ')[0]} ${cyc.shortDate.split(' ')[1] || ''}</div>
-      <div class="text-[9px] font-mono text-slate-400">${cyc.sarBackscatterDb} dB</div>
+      <div class="text-[9.5px] font-medium truncate mt-0.5">${cyc.shortDate.split(' ')[0]} ${cyc.shortDate.split(' ')[1] || ''}</div>
+      <div class="text-[9px] font-mono text-[#64748b] tabular-nums">${cyc.sarBackscatterDb} dB</div>
     `;
     container.appendChild(btn);
   });
@@ -242,13 +242,13 @@ function renderBackscatterChart() {
     col.onclick = () => selectOrbitalCycle(idx);
 
     const barColor = isActive
-      ? (isFlooded ? 'bg-cyan-400 border-2 border-white' : 'bg-emerald-400 border-2 border-white')
-      : (isFlooded ? 'bg-cyan-600/70 group-hover:bg-cyan-400' : 'bg-slate-700 group-hover:bg-slate-500');
+      ? (isFlooded ? 'bg-water' : 'bg-ok')
+      : (isFlooded ? 'bg-water/40 group-hover:bg-water/80' : 'bg-[#202833] group-hover:bg-[#334155]');
 
     col.innerHTML = `
-      <span class="text-[9px] font-mono ${isActive ? 'text-cyan-300 font-bold' : 'text-slate-500'} mb-0.5">${cyc.sarBackscatterDb}</span>
+      <span class="text-[9px] font-mono ${isActive ? 'text-water font-bold' : 'text-[#64748b]'} mb-0.5 tabular-nums">${cyc.sarBackscatterDb}</span>
       <div class="w-full rounded-t transition-all ${barColor}" style="height: ${pct}%"></div>
-      <span class="text-[9px] font-mono text-slate-400 mt-0.5">+${cyc.dayOffset}d</span>
+      <span class="text-[9px] font-mono text-[#94a3b8] mt-0.5 tabular-nums">+${cyc.dayOffset}d</span>
     `;
     chart.appendChild(col);
   });
@@ -397,6 +397,9 @@ function updateAllVisuals(flyToBasin = false) {
     let basinDetected = false;
 
     bData.riverSegments.forEach(seg => {
+      const bName = typeof getBasinName === 'function' ? getBasinName(bKey) : bData.name;
+      const cycleInfo = typeof getCycleText === 'function' ? getCycleText(currentCycleIndex) : cycle;
+
       // Trazo base del río (siempre visible para referencia geográfica)
       L.polyline(seg, {
         pane: 'riversTopPane',
@@ -407,9 +410,9 @@ function updateAllVisuals(flyToBasin = false) {
         lineJoin: 'round'
       }).bindPopup(`
         <div class="text-xs space-y-1 font-sans">
-          <span class="text-sky-400 font-bold block">💧 CAUCE HIDROGRÁFICO (${bData.name})</span>
-          <strong>Código ANA:</strong> ${bData.anaCode}<br>
-          <strong>Valor de simulación:</strong> <code class="text-cyan-300 font-mono">${riverDb.toFixed(1)} dB</code>
+          <span class="text-sky-400 font-bold block">💧 ${typeof t === 'function' ? t('popup_channel_base') : 'HYDROGRAPHIC CHANNEL'} (${bName})</span>
+          <strong>${typeof t === 'function' ? t('popup_ana_code') : 'ANA Code:'}</strong> ${bData.anaCode}<br>
+          <strong>${typeof t === 'function' ? t('popup_sim_value') : 'Simulation Value:'}</strong> <code class="text-cyan-300 font-mono">${riverDb.toFixed(1)} dB</code>
         </div>
       `).addTo(riverLayerGroup);
 
@@ -440,12 +443,12 @@ function updateAllVisuals(flyToBasin = false) {
             lineJoin: 'round'
           }).bindPopup(`
             <div class="text-xs space-y-1">
-              <span class="text-cyan-400 font-bold block">🛰️ RÍO DETECTADO POR RADAR SAR</span>
-              <strong>Cuenca:</strong> ${bData.name}<br>
-              <strong>Fase Orbital:</strong> ${cycle.label} (${cycle.phase})<br>
-              <strong>Retrodispersión Medida (&sigma;<sup>0</sup>):</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${riverDb.toFixed(1)} dB &le; ${sarThresholdDb} dB</code><br>
-              <strong>Ancho Lámina Agua:</strong> <span class="text-amber-400 font-bold">${cycle.metrics[bKey].width}</span><br>
-              <strong>Área Agrícola Inundada:</strong> <span class="text-rose-400 font-bold">${cycle.metrics[bKey].ha}</span>
+              <span class="text-cyan-400 font-bold block">${typeof t === 'function' ? t('popup_detected_river') : '🛰️ SAR RADAR DETECTED RIVER'}</span>
+              <strong>${typeof t === 'function' ? t('popup_basin') : 'Basin:'}</strong> ${bName}<br>
+              <strong>${typeof t === 'function' ? t('popup_orbital_phase') : 'Orbital Phase:'}</strong> ${cycle.label} (${cycleInfo.phase || cycle.phase})<br>
+              <strong>${typeof t === 'function' ? t('popup_backscatter') : 'Measured Backscatter (σ⁰):'}</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${riverDb.toFixed(1)} dB &le; ${sarThresholdDb} dB</code><br>
+              <strong>${typeof t === 'function' ? t('popup_water_width') : 'Water Surface Width:'}</strong> <span class="text-amber-400 font-bold">${cycle.metrics[bKey].width}</span><br>
+              <strong>${typeof t === 'function' ? t('popup_flooded_crop') : 'Flooded Agricultural Area:'}</strong> <span class="text-rose-400 font-bold">${cycle.metrics[bKey].ha}</span>
             </div>
           `).addTo(floodLayerGroup);
 
@@ -481,6 +484,12 @@ function updateAllVisuals(flyToBasin = false) {
         }).addTo(criticalPointsGroup);
       }
 
+      const trCp = typeof getCheckpointTranslation === 'function' ? getCheckpointTranslation(cp) : cp;
+      const bName = typeof getBasinName === 'function' ? getBasinName(bKey) : bData.name;
+      const sarStatusLabel = insideSwath && passesThreshold
+        ? (typeof currentLang !== 'undefined' && currentLang === 'en' ? 'INSIDE ACTIVE SAR SWATH' : (typeof t === 'function' ? t('popup_inside_swath') : 'DENTRO DE BLOQUE SAR ACTIVO'))
+        : (typeof t === 'function' ? t('popup_outside_swath') : 'Outside Threshold / Swath');
+
       L.circleMarker(cp.coords, {
         pane: 'criticalPane',
         radius: isCurrent ? 5.5 : 4.5,
@@ -490,10 +499,10 @@ function updateAllVisuals(flyToBasin = false) {
         weight: 1.5
       }).bindPopup(`
         <div class="text-xs space-y-1">
-          <span class="font-bold text-rose-400 block">📍 ${cp.name}</span>
-          <strong>Cuenca:</strong> ${bData.name}<br>
-          <strong>Estado Detección SAR:</strong> <span class="font-bold ${insideSwath && passesThreshold ? 'text-cyan-300' : 'text-slate-400'}">${insideSwath && passesThreshold ? 'DENTRO DE BLOQUE SAR ACTIVO' : 'Fuera de Umbral/Bloque'}</span><br>
-          <strong>Vulnerabilidad:</strong> ${cp.vulnerability}
+          <span class="font-bold text-rose-400 block">📍 ${trCp.name}</span>
+          <strong>${typeof t === 'function' ? t('popup_basin') : 'Basin:'}</strong> ${bName}<br>
+          <strong>${typeof t === 'function' ? t('popup_sar_status') : 'SAR Detection Status:'}</strong> <span class="font-bold ${insideSwath && passesThreshold ? 'text-cyan-300' : 'text-slate-400'}">${sarStatusLabel}</span><br>
+          <strong>${typeof t === 'function' ? t('popup_vulnerability') : 'Vulnerability:'}</strong> ${trCp.vulnerability}
         </div>
       `).addTo(criticalPointsGroup);
     });
@@ -518,9 +527,9 @@ function updateAllVisuals(flyToBasin = false) {
           lineJoin: 'round'
         }).bindPopup(`
           <div class="text-xs space-y-1">
-            <span class="text-sky-400 font-bold block">🇵🇪 RED HIDROGRÁFICA DEL PERÚ: ${natRiver.name}</span>
-            <strong>Región Hidrográfica:</strong> ${natRiver.zone}<br>
-            <strong>Firma Radar (&sigma;<sup>0</sup>):</strong> <code class="text-cyan-300 font-mono">${effectiveDb} dB</code>
+            <span class="text-sky-400 font-bold block">${typeof t === 'function' ? t('popup_national_network') : '🇵🇪 PERU HYDROGRAPHIC NETWORK:'} ${natRiver.name}</span>
+            <strong>${typeof t === 'function' ? t('popup_region') : 'Hydrographic Region:'}</strong> ${natRiver.zone}<br>
+            <strong>${typeof t === 'function' ? t('popup_radar_signature') : 'Radar Signature (σ⁰):'}</strong> <code class="text-cyan-300 font-mono">${effectiveDb} dB</code>
           </div>
         `).addTo(riverLayerGroup);
 
@@ -539,10 +548,10 @@ function updateAllVisuals(flyToBasin = false) {
               lineJoin: 'round'
             }).bindPopup(`
               <div class="text-xs space-y-1">
-                <span class="text-cyan-400 font-bold block">🛰️ RÍO NACIONAL DETECTADO POR SAR: ${natRiver.name}</span>
-                <strong>Vertiente / Zona:</strong> ${natRiver.zone}<br>
-                <strong>Firma Radar (&sigma;<sup>0</sup>):</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${effectiveDb} dB &le; ${sarThresholdDb} dB</code><br>
-                <strong>Puntos GPS Extraídos:</strong> ${sub.length} vértices dentro del bloque SAR
+                <span class="text-cyan-400 font-bold block">${typeof t === 'function' ? t('popup_national_detected') : '🛰️ NATIONAL RIVER DETECTED BY SAR:'} ${natRiver.name}</span>
+                <strong>${typeof t === 'function' ? t('popup_slope_zone') : 'Slope / Zone:'}</strong> ${natRiver.zone}<br>
+                <strong>${typeof t === 'function' ? t('popup_radar_signature') : 'Radar Signature (σ⁰):'}</strong> <code class="bg-slate-800 px-1 py-0.5 rounded text-cyan-300 font-mono">${effectiveDb} dB &le; ${sarThresholdDb} dB</code><br>
+                <strong>${typeof t === 'function' ? t('popup_extracted_pts') : 'Extracted GPS Points:'}</strong> ${sub.length} ${typeof t === 'function' ? t('popup_pts_inside_suffix') : 'vertices inside SAR swath'}
               </div>
             `).addTo(floodLayerGroup);
 
@@ -563,23 +572,48 @@ function updateAllVisuals(flyToBasin = false) {
   }
 
   // 4. ACTUALIZAR PANELES DE LECTURA SAR Y TELEMETRÍA
-  document.getElementById('detected-rivers-count').textContent = `${detectedRiverCount} RÍOS DE REFERENCIA (${totalDetectedVertices.toLocaleString()} PTS)`;
-  document.getElementById('header-active-stats').textContent = `${currentMatchedScenes.length} BLOQUES SAR · ${detectedRiverCount} RÍOS DE REFERENCIA`;
+  const refSuffix = typeof t === 'function' ? t('ref_rivers_count_suffix') : ' REFERENCE RIVERS';
+  document.getElementById('detected-rivers-count').textContent = `${detectedRiverCount}${refSuffix}`;
+  document.getElementById('header-active-stats').textContent = typeof t === 'function' ? t('header_status') : 'NISAR L2 GCOV · 20m NATIVE MESH';
 
   const bMetrics = cycle.metrics[currentBasin];
-  document.getElementById('pass-badge').textContent = `🛰️ ${cycle.label.toUpperCase()}`;
+  const passPrefix = typeof t === 'function' ? t('pass_badge_prefix') : '🛰️ ORBITAL CYCLE ';
+  document.getElementById('pass-badge').textContent = `${passPrefix}+${cycle.dayOffset}d`;
+
+  const cycleInfo = typeof getCycleText === 'function' ? getCycleText(currentCycleIndex) : null;
+  const riskLevelText = cycleInfo ? cycleInfo.riskLevel : cycle.riskLevel;
+  const riskDescText = cycleInfo ? cycleInfo.summary : cycle.summary;
+  const phaseText = cycleInfo ? cycleInfo.phase : cycle.phase;
+
   const riskEl = document.getElementById('risk-level');
-  riskEl.textContent = cycle.riskLevel;
-  riskEl.className = `text-[10px] font-mono px-2 py-0.5 rounded border font-bold ${cycle.riskClass}`;
+  riskEl.textContent = riskLevelText;
+  const riskClassMap = {
+    'ALERTA ROJA': 'text-danger border-danger/40 bg-danger/10',
+    'CRITICAL FLOOD ALERT': 'text-danger border-danger/40 bg-danger/10',
+    'ALERTA ROJA (DESBORDE)': 'text-danger border-danger/40 bg-danger/10',
+    'ALERTA MODERADA': 'text-crops border-crops/40 bg-crops/10',
+    'MODERATE ALERT': 'text-crops border-crops/40 bg-crops/10',
+    'NORMAL': 'text-ok border-ok/40 bg-ok/10',
+    'GREEN LEVEL (BASE)': 'text-ok border-ok/40 bg-ok/10',
+    'NIVEL VERDE (BASE)': 'text-ok border-ok/40 bg-ok/10'
+  };
+  riskEl.className = `text-[10px] font-mono px-2 py-0.5 rounded border font-bold ${riskClassMap[riskLevelText] || 'text-danger border-danger/40 bg-danger/10'}`;
 
   document.getElementById('ana-code').textContent = basin.anaCode;
   document.getElementById('stat-flow').textContent = bMetrics.flow;
-  document.getElementById('risk-desc').textContent = cycle.summary;
-  document.getElementById('sar-width').textContent = bMetrics.width;
-  document.getElementById('stat-hectares').textContent = bMetrics.ha;
+  document.getElementById('risk-desc').textContent = riskDescText;
+  const widthPrefix = typeof t === 'function' ? t('metric_width_prefix') : 'Width: ';
+  document.getElementById('sar-width').textContent = `${widthPrefix}${bMetrics.width}`;
+  document.getElementById('stat-hectares').textContent = bMetrics.ha ? bMetrics.ha.replace(' ha', '') : '0';
   document.getElementById('stat-pop').textContent = bMetrics.pop;
-  document.getElementById('active-basin-name').textContent = currentTrackFilter === 'peru_all' ? 'Perú Completo (118 Bloques SAR)' : basin.name;
-  document.getElementById('timeline-phase-label').textContent = `${cycle.shortDate} — ${cycle.phase}`;
+  
+  const basinName = currentTrackFilter === 'peru_all' 
+    ? (typeof t === 'function' ? t('btn_peru_all') : 'National Peru (118 SAR)')
+    : (typeof getBasinName === 'function' ? getBasinName(currentBasin) : basin.name);
+  document.getElementById('active-basin-name').textContent = basinName;
+  const sidebarTitle = document.getElementById('sidebar-basin-title');
+  if (sidebarTitle) sidebarTitle.textContent = basinName;
+  document.getElementById('timeline-phase-label').textContent = `${cycle.shortDate} — ${phaseText}`;
 
   const activeDate = getTrackDateForCycle(basin.primaryTrack, cycle);
   updateGibsLayer(activeDate);
@@ -601,7 +635,16 @@ function renderOrbitalSwaths(scenes) {
   scenes.forEach(scene => {
     if (!scene.footprint || scene.footprint.length < 3) return;
     const color = trackColors[scene.track] || '#38bdf8';
-    const dirArrow = scene.flightDirection === 'ASCENDING' ? '↗ ASCENDENTE (Sur → Norte)' : '↙ DESCENDENTE (Norte → Sur)';
+    const dirArrow = typeof getFlightDirectionLabel === 'function'
+      ? getFlightDirectionLabel(scene.flightDirection)
+      : (scene.flightDirection === 'ASCENDING' ? '↗ ASCENDING (South → North)' : '↙ DESCENDING (North → South)');
+
+    const titleSwath = typeof t === 'function' ? t('popup_swath_title') : '🛰️ ACTIVE SAR SWATH (NASA ASF)';
+    const labelTrack = typeof t === 'function' ? t('popup_track_label') : 'Orbital Track';
+    const labelDate = typeof t === 'function' ? t('popup_acq_date') : 'Acquisition Date:';
+    const labelMode = typeof t === 'function' ? t('popup_mode_pol') : 'Mode / Polarization:';
+    const btnProjectThis = typeof t === 'function' ? t('btn_project_single') : 'Project this Swath';
+    const btnProjectAll = typeof t === 'function' ? t('btn_project_all') : 'Project All';
 
     const poly = L.polygon(scene.footprint, {
       pane: 'swathPane',
@@ -613,17 +656,17 @@ function renderOrbitalSwaths(scenes) {
       fillOpacity: currentTrackFilter === 'peru_all' ? 0.04 : 0.06
     }).bindPopup(`
       <div class="text-xs space-y-1.5 font-sans">
-        <span class="text-indigo-400 font-bold block">🛰️ BLOQUE SAR ACTIVO (NASA ASF)</span>
-        <strong>Track Orbital:</strong> <span class="font-mono text-white">Track ${scene.track} (${dirArrow})</span><br>
-        <strong>Fecha Adquisición:</strong> <span class="font-mono text-cyan-300">${scene.startTime || scene.date}</span><br>
-        <strong>Modo / Polarización:</strong> <span class="font-mono">${scene.beamMode || 'IW'} (${scene.polarization || 'VV+VH'})</span><br>
+        <span class="text-indigo-400 font-bold block">${titleSwath}</span>
+        <strong>${labelTrack}:</strong> <span class="font-mono text-white">Track ${scene.track} (${dirArrow})</span><br>
+        <strong>${labelDate}</strong> <span class="font-mono text-cyan-300">${scene.startTime || scene.date}</span><br>
+        <strong>${labelMode}</strong> <span class="font-mono">${scene.beamMode || 'IW'} (${scene.polarization || 'VV+VH'})</span><br>
         <strong>Granule ID:</strong> <code class="text-[10px] bg-slate-800 px-1 py-0.5 rounded block truncate">${scene.granuleName}</code>
         <div class="pt-1 flex gap-1.5">
-          <button onclick="projectSingleScene('${scene.granuleName}')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded text-[11px] font-medium flex-1">
-            📡 Proyectar este Bloque
+          <button onclick="projectSingleScene('${scene.granuleName}')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded text-[11px] font-medium flex-1 cursor-pointer">
+            📡 ${btnProjectThis}
           </button>
-          <button onclick="toggleRealSarImageOverlay(true)" class="bg-cyan-700 hover:bg-cyan-600 text-white px-2 py-1 rounded text-[11px] font-medium flex-1">
-            🌐 Proyectar Todos
+          <button onclick="toggleRealSarImageOverlay(true)" class="bg-cyan-700 hover:bg-cyan-600 text-white px-2 py-1 rounded text-[11px] font-medium flex-1 cursor-pointer">
+            🌐 ${btnProjectAll}
           </button>
         </div>
       </div>
@@ -647,17 +690,18 @@ function renderOrbitalSwaths(scenes) {
       item.innerHTML = `
         <span class="text-cyan-300 font-bold">T${sc.track} (${sc.flightDirection ? sc.flightDirection[0] : 'S'})</span>
         <span class="text-slate-400 truncate max-w-[130px]" title="${sc.granuleName}">${sc.granuleName.substring(17, 32)}</span>
-        <span class="text-indigo-400 hover:underline">📡 Ver</span>
+        <span class="text-indigo-400 hover:underline">${typeof t === 'function' ? t('reader_view') : '📡 View'}</span>
       `;
       readerList.appendChild(item);
     });
   }
 
-  document.getElementById('asf-track-label').textContent = `${scenes.length} Bloques SAR Leídos`;
-  document.getElementById('asf-date-label').textContent = currentTrackFilter === 'peru_all' ? 'Cobertura Nacional' : `Ciclo +${ORBITAL_CYCLES[currentCycleIndex].dayOffset}d`;
+  const trackLabelSuffix = typeof t === 'function' ? t('hud_swaths_suffix') : ' Active Swaths';
+  document.getElementById('asf-track-label').textContent = `${scenes.length}${trackLabelSuffix}`;
+  document.getElementById('asf-date-label').textContent = currentTrackFilter === 'peru_all' ? (typeof t === 'function' ? t('btn_peru_all') : 'National Peru') : `+${ORBITAL_CYCLES[currentCycleIndex].dayOffset}d`;
   const granEl = document.getElementById('asf-granule-name');
-  granEl.textContent = scenes.length > 0 ? `Activos: ${scenes.map(s => 'T' + s.track).slice(0, 6).join(', ')}... (${scenes.length} total)` : 'Sin bloques';
-  document.getElementById('hud-track-info').textContent = `${scenes.length} Bloques SAR Activos`;
+  granEl.textContent = scenes.length > 0 ? `Tracks: ${scenes.map(s => 'T' + s.track).slice(0, 6).join(', ')}... (${scenes.length} total)` : 'No active tracks';
+  document.getElementById('hud-track-info').textContent = `${scenes.length}${trackLabelSuffix}`;
 
   if (isRealSarOverlayActive) {
     showAllMatchedSceneOverlays();
@@ -688,7 +732,12 @@ function showAllMatchedSceneOverlays() {
 
   isRealSarOverlayActive = true;
   const btnText = document.getElementById('btn-real-sar-text');
-  if (btnText) btnText.textContent = `Ocultar Imágenes Radar (${scenesToProject.length} Activas)`;
+  if (btnText) {
+    const isEn = typeof currentLang !== 'undefined' ? currentLang === 'en' : true;
+    btnText.textContent = isEn
+      ? `Hide Radar Images (${scenesToProject.length} Active)`
+      : `Ocultar Imágenes Radar (${scenesToProject.length} Activas)`;
+  }
 }
 
 function projectSingleScene(granuleName) {
@@ -716,7 +765,10 @@ function projectSingleScene(granuleName) {
 
   isRealSarOverlayActive = true;
   const btnText = document.getElementById('btn-real-sar-text');
-  if (btnText) btnText.textContent = 'Ocultar Imágenes Radar Activas';
+  if (btnText) {
+    const isEn = typeof currentLang !== 'undefined' ? currentLang === 'en' : true;
+    btnText.textContent = isEn ? 'Hide Active Radar Images' : 'Ocultar Imágenes Radar Activas';
+  }
 }
 
 function toggleRealSarImageOverlay(forceOn = false) {
@@ -724,7 +776,9 @@ function toggleRealSarImageOverlay(forceOn = false) {
     realSarOverlayGroup.clearLayers();
     isRealSarOverlayActive = false;
     const btnText = document.getElementById('btn-real-sar-text');
-    if (btnText) btnText.textContent = 'Proyectar Imágenes Radar en Bloques Activos';
+    if (btnText) {
+      btnText.textContent = typeof t === 'function' ? t('btn_project_raster') : 'Project Radar Raster on Swaths';
+    }
   } else {
     showAllMatchedSceneOverlays();
   }
@@ -734,7 +788,9 @@ function toggleRealSarImageOverlay(forceOn = false) {
 async function fetchLiveAsfForCurrentView() {
   if (!map) return;
   const btnText = document.getElementById('btn-live-asf-text');
-  if (btnText) btnText.textContent = 'Consultando NASA ASF API en vivo...';
+  if (btnText) {
+    btnText.textContent = typeof t === 'function' ? t('btn_querying_asf') : 'Querying NASA ASF API live...';
+  }
 
   const b = map.getBounds();
   const minLon = Math.max(-81.5, b.getWest()).toFixed(2);
@@ -780,10 +836,20 @@ async function fetchLiveAsfForCurrentView() {
     });
 
     liveFetchedAsfScenes = parsed;
-    if (btnText) btnText.textContent = `✅ ${parsed.length} Escenas NASA ASF Leídas en Vista`;
+    if (btnText) {
+      const isEn = typeof currentLang !== 'undefined' ? currentLang === 'en' : true;
+      btnText.textContent = isEn
+        ? `✅ ${parsed.length} NASA ASF Scenes Loaded in View`
+        : `✅ ${parsed.length} Escenas NASA ASF Leídas en Vista`;
+    }
     updateAllVisuals(false);
   } catch (err) {
-    if (btnText) btnText.textContent = '⚠️ Usando Catálogo Nacional Pre-cargado (166 escenas)';
+    if (btnText) {
+      const isEn = typeof currentLang !== 'undefined' ? currentLang === 'en' : true;
+      btnText.textContent = isEn
+        ? '⚠️ Using Preloaded National Catalog (166 scenes)'
+        : '⚠️ Usando Catálogo Nacional Pre-cargado (166 escenas)';
+    }
   }
 }
 

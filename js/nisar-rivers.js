@@ -14,13 +14,14 @@ let nisarFirstFitDone = false;
 
 // Zonas con exportacion real de NISAR L2 GCOV.
 const NISAR_REGIONS = {
-  majes: { root: 'output/nisar_majes', label: 'Majes-Camaná (valle inferior)' }
+  chili: { root: 'output/nisar_chili', label: 'Chili Valley (Measured Reach)' },
+  majes: { root: 'output/nisar_chili', label: 'Chili Valley (Measured Reach)' }
 };
 
 function nisarRegionRoot() {
   const sel = document.getElementById('nisar-rivers-region');
-  const key = sel && sel.value ? sel.value : 'majes';
-  return (NISAR_REGIONS[key] || NISAR_REGIONS.majes).root;
+  const key = sel && sel.value ? sel.value : 'chili';
+  return (NISAR_REGIONS[key] || NISAR_REGIONS.chili).root;
 }
 
 function nisarChannelStyle(feature) {
@@ -36,16 +37,16 @@ function nisarChannelStyle(feature) {
 function nisarChannelPopup(feature) {
   const p = feature.properties || {};
   const tipo = p.tipo === 'agua_abierta_oscura'
-    ? 'Agua abierta / sombra especular (oscura en Banda L)'
-    : 'Corredor ripario o cauce con vegetación (brillante en Banda L)';
-  const cambio = p.cambio ? `<br>Cambio entre fechas: ${p.cambio}` : '';
+    ? 'Open water / specular reflection (dark in L-band)'
+    : 'Riparian corridor / vegetated channel (bright in L-band)';
+  const cambio = p.cambio ? `<br>Multitemporal change: ${p.cambio}` : '';
   return `<div style="min-width:230px">
-    <strong style="color:#ffd43b">Cauce detectado por NISAR</strong><br>
+    <strong style="color:#ffd43b">NISAR Detected River Channel</strong><br>
     <span style="color:#94a3b8">${tipo}</span><hr style="border-color:#334155">
-    Adquisición: ${p.adquisicion || 's/d'}${cambio}<br>
-    Largo: ${(p.largo_m || 0).toLocaleString('es-PE')} m &nbsp; Ancho medio: ${(p.ancho_m || 0).toFixed(0)} m<br>
-    Elongación: ${p.elongacion || 's/d'} &nbsp; dB medio: ${p.db_medio ?? 's/d'}<br>
-    <span style="color:#64748b;font-size:11px">${p.origen || ''}</span>
+    Acquisition: ${p.adquisicion || 'N/A'}${cambio}<br>
+    Length: ${(p.largo_m || 0).toLocaleString('en-US')} m &nbsp; Mean width: ${(p.ancho_m || 0).toFixed(0)} m<br>
+    Elongation: ${p.elongacion || 'N/A'} &nbsp; Mean dB: ${p.db_medio ?? 'N/A'}<br>
+    <span style="color:#64748b;font-size:11px">${p.origen || 'Raw NISAR L2 GCOV'}</span>
   </div>`;
 }
 
@@ -94,10 +95,10 @@ async function renderNisarRiversLayer(fit = false) {
   const status = document.getElementById('nisar-rivers-status');
   clearNisarRiversLayer();
   if (!enabled) {
-    status.textContent = 'Cauces medidos en la imagen NISAR desactivados.';
+    status.textContent = 'Measured NISAR river channels disabled.';
     return;
   }
-  status.textContent = 'Cargando imagen NISAR GCOV y cauces detectados...';
+  status.textContent = 'Loading raw NISAR GCOV imagery and detected channels...';
   const root = nisarRegionRoot();
   try {
     const resp = await fetch(`${root}/web_manifest.json`, { cache: 'no-store' });
@@ -151,8 +152,8 @@ async function renderNisarRiversLayer(fit = false) {
     nisarFirstFitDone = true;
     const d = manifest.detector || {};
     const lineas = Object.values(manifest.lineas || {}).reduce((acc, v) => acc + (v.brillo || 0) + (v.oscuro || 0), 0);
-    const fechas = (manifest.fechas || []).map(f => `${f.adquisicion || f.clave} (${f.lineas} cauces)`).join(' y ');
-    status.textContent = `NISAR L2 GCOV, malla nativa ${d.pixel_m} m. ${lineas} cauces detectados · ${fechas}. ${manifest.warning || ''}`;
+    const fechas = (manifest.fechas || []).map(f => `${f.adquisicion || f.clave} (${f.lineas} channels)`).join(' & ');
+    status.textContent = `NISAR L2 GCOV, 20m native grid. ${lineas} river reaches detected · ${fechas}. ${manifest.warning || ''}`;
   } catch (err) {
     if (request === nisarRiverRequest) status.textContent = err.message;
   }

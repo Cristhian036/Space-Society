@@ -1,0 +1,46 @@
+{
+  "point_lon_lat": [
+    -72.725,
+    -16.565
+  ],
+  "source": "NASA CMR public catalog",
+  "warning": "Earthdata Login required. Original January is BETA; September is PROVISIONAL. Do not compare different processing versions without validation.",
+  "granules": [
+    {
+      "label": "original_septiembre",
+      "collection": "NISAR_L2_GCOV_PROVISIONAL_V1",
+      "granule": "NISAR_L2_PR_GCOV_029_147_A_169_2005_DHDH_A_20260904T104047_20260904T104115_P05023_N_F_J_001",
+      "start": "2026-09-04T10:40:47.000Z",
+      "cmr_id": "G4299928550-ASF",
+      "earthdata_url": "https://search.earthdata.nasa.gov/search/granules?p=C2854338529-ASF",
+      "h5_urls": [
+        "https://nisar.asf.earthdatacloud.nasa.gov/NISAR/NISAR_L2_GCOV_PROVISIONAL_V1/NISAR_L2_PR_GCOV_029_147_A_169_2005_DHDH_A_20260904T104047_20260904T104115_P05023_N_F_J_001/NISAR_L2_PR_GCOV_029_147_A_169_2005_DHDH_A_20260904T104047_20260904T104115_P05023_N_F_J_001.h5",
+        "https://nisar.asf.earthdatacloud.nasa.gov/NISAR/NISAR_L2_GCOV_PROVISIONAL_V1/NISAR_L2_PR_GCOV_029_147_A_169_2005_DHDH_A_20260904T104047_20260904T104115_P05023_N_F_J_001/NISAR_L2_PR_GCOV_029_147_A_169_2005_DHDH_A_20260904T104047_20260904T104115_P05023_N_F_J_001_QA_STATS.h5"
+      ]
+    },
+    {
+      "label": "original_enero",
+      "collection": "NISAR_L2_GCOV_BETA_V1",
+      "granule": "NISAR_L2_PR_GCOV_010_147_A_169_2005_DHDH_A_20260119T104052_20260119T104119_X05010_N_F_J_001",
+      "start": "2026-01-19T10:40:52.000Z",
+      "cmr_id": "G4059043434-ASF",
+      "earthdata_url": "https://search.earthdata.nasa.gov/search/granules?p=C3622214170-ASF",
+      "h5_urls": [
+        "https://nisar.asf.earthdatacloud.nasa.gov/NISAR/NISAR_L2_GCOV_BETA_V1/NISAR_L2_PR_GCOV_010_147_A_169_2005_DHDH_A_20260119T104052_20260119T104119_X05010_N_F_J_001/NISAR_L2_PR_GCOV_010_147_A_169_2005_DHDH_A_20260119T104052_20260119T104119_X05010_N_F_J_001.h5",
+        "https://nisar.asf.earthdatacloud.nasa.gov/NISAR/NISAR_L2_GCOV_BETA_V1/NISAR_L2_PR_GCOV_010_147_A_169_2005_DHDH_A_20260119T104052_20260119T104119_X05010_N_F_J_001/NISAR_L2_PR_GCOV_010_147_A_169_2005_DHDH_A_20260119T104052_20260119T104119_X05010_N_F_J_001_QA_STATS.h5"
+      ]
+    },
+    {
+      "label": "referencia_enero_misma_version",
+      "collection": "NISAR_L2_GCOV_BETA_V1",
+      "granule": "NISAR_L2_PR_GCOV_009_147_A_169_2005_DHDH_A_20260107T104052_20260107T104118_X05010_N_P_J_001",
+      "start": "2026-01-07T10:40:52.000Z",
+      "cmr_id": "G4058656132-ASF",
+      "earthdata_url": "https://search.earthdata.nasa.gov/search/granules?p=C3622214170-ASF",
+      "h5_urls": [
+        "https://nisar.asf.earthdatacloud.nasa.gov/NISAR/NISAR_L2_GCOV_BETA_V1/NISAR_L2_PR_GCOV_009_147_A_169_2005_DHDH_A_20260107T104052_20260107T104118_X05010_N_P_J_001/NISAR_L2_PR_GCOV_009_147_A_169_2005_DHDH_A_20260107T104052_20260107T104118_X05010_N_P_J_001.h5",
+        "https://nisar.asf.earthdatacloud.nasa.gov/NISAR/NISAR_L2_GCOV_BETA_V1/NISAR_L2_PR_GCOV_009_147_A_169_2005_DHDH_A_20260107T104052_20260107T104118_X05010_N_P_J_001/NISAR_L2_PR_GCOV_009_147_A_169_2005_DHDH_A_20260107T104052_20260107T104118_X05010_N_P_J_001_QA_STATS.h5"
+      ]
+    }
+  ]
+}

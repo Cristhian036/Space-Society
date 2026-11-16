@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NISAR Hydro-Lens — NASA Space Apps Challenge 2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #030712; color: #f3f4f6; overflow: hidden; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .slide { display: none; opacity: 0; transition: opacity 0.5s ease-in-out; }
+    .slide.active { display: flex; opacity: 1; }
+    .ken-burns {
+      animation: kenburns 6s ease-out alternate infinite;
+    }
+    @keyframes kenburns {
+      0% { transform: scale(1.0); }
+      100% { transform: scale(1.06); }
+    }
+  </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-between relative select-none">
+
+  <!-- Top Navigation & Branding -->
+  <header class="w-full px-8 py-4 flex justify-between items-center z-50 bg-gradient-to-b from-slate-950/90 to-transparent">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-cyan-500/20">
+        🛰️
+      </div>
+      <div>
+        <h1 class="text-sm font-bold tracking-tight text-white flex items-center gap-2">
+          NISAR HYDRO-LENS <span class="text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full mono">NASA SPACE APPS 2026</span>
+        </h1>
+        <p class="text-[11px] text-slate-400">Team Space Society · Automated Radar River & Flood Intelligence</p>
+      </div>
+    </div>
+
+    <!-- Slide Indicators & Controls -->
+    <div class="flex items-center space-x-4">
+      <div class="flex space-x-1.5" id="slide-dots">
+        <!-- Dots injected by JS -->
+      </div>
+      <button id="btn-auto-pitch" onclick="toggleAutoPitch()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition shadow-lg shadow-cyan-600/30 mono">
+        <span id="pitch-play-icon">▶</span> <span id="pitch-play-text">Auto 30s Pitch</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Slide Canvas -->
+  <main class="flex-1 w-full h-full relative overflow-hidden flex items-center justify-center px-12">
+
+    <!-- SLIDE 1: THE HOOK / PROBLEM (0:00 - 0:06) -->
+    <section class="slide active flex-col lg:flex-row items-center justify-between gap-10 w-full max-w-7xl" data-duration="6">
+      <div class="flex-1 space-y-4">
+        <div class="inline-block px-3 py-1 rounded-full text-xs font-mono bg-rose-950/60 border border-rose-600/60 text-rose-300 font-bold">
+          ⚠️ THE CRITICAL CHALLENGE
+        </div>
+        <h2 class="text-4xl lg:text-5xl font-black text-white leading-tight">
+          Dry Rivers Turn into <span class="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-amber-300">Deadly Flash Floods</span> in Hours.
+        </h2>
+        <p class="text-slate-300 text-lg leading-relaxed">
+          In arid mountainous watersheds like the Peruvian Andes, ephemeral riverbeds remain dry for months—until sudden torrential cloudbursts trigger catastrophic mudslides (<em class="text-amber-300 font-semibold">huaicos</em>).
+        </p>
+        <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 text-sm text-slate-400">
+          <strong class="text-white block mb-1">Optical Satellites (Sentinel-2, Landsat) Fail:</strong>
+          Heavy storm clouds, night passes, and mountain shadows completely blind optical cameras during the critical hours of flood onset.
+        </div>
+      </div>
+      <div class="flex-1 w-full max-h-[520px] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl relative">
+        <img src="output/video_frames/frame_01_national_challenge.png" class="w-full h-full object-cover ken-burns" alt="National Basin Overview">
+        <div class="absolute bottom-3 left-3 bg-slate-950/90 border border-slate-800 px-3 py-1 rounded text-xs mono text-cyan-300">
+          📍 Peruvian Pacific & Andean Ephemeral Watersheds
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: THE SCIENTIFIC BARRIER & OPERA AUDIT (0:06 - 0:14) -->
+    <section class="slide flex-col lg:flex-row items-center justify-between gap-10 w-full max-w-7xl" data-duration="8">
+      <div class="flex-1 space-y-4">
+        <div class="inline-block px-3 py-1 rounded-full text-xs font-mono bg-amber-950/60 border border-amber-500/60 text-amber-300 font-bold">
+          🔬 THE RADAR PHYSICS BARRIER
+        </div>
+        <h2 class="text-4xl lg:text-5xl font-black text-white leading-tight">
+          Why Standard SAR & <span class="text-amber-400">NASA OPERA</span> Collapse.
+        </h2>
+        <div class="space-y-3 text-slate-300 text-sm">
+          <div class="p-3 bg-slate-900/80 rounded-lg border border-slate-800">
+            <strong class="text-rose-300">1. Deserts Mimic Water in L-Band:</strong> Smooth dry sand reflects microwave pulses away like a mirror (-18 dB), causing traditional decibel thresholds to falsely classify entire deserts as water.
+          </div>
+          <div class="p-3 bg-slate-900/80 rounded-lg border border-slate-800">
+            <strong class="text-cyan-300">2. Riparian Vegetation is Ultra-Bright:</strong> Tree trunks and dense riverbeds create corner-reflector <em>double bounce</em> (-8 dB). In L-band, the river corridor is <strong>bright</strong>, not dark!
+          </div>
+          <div class="p-3 bg-slate-900/80 rounded-lg border border-slate-800">
+            <strong class="text-emerald-300">3. Auditing NASA/JPL OPERA:</strong> We compiled and executed NASA’s official <code>DSWX-SAR</code> pipeline. In narrow Andean channels, bimodal thresholding failed (<code>threshold array is empty</code>).
+          </div>
+        </div>
+      </div>
+      <div class="flex-1 w-full max-h-[520px] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl relative">
+        <img src="output/video_frames/frame_02_chili_urban_failure.png" class="w-full h-full object-cover" alt="Chili Urban Failure">
+        <div class="absolute bottom-3 left-3 bg-slate-950/90 border border-slate-800 px-3 py-1 rounded text-xs mono text-rose-300">
+          📍 Chili Urban Reach: +1.7 dB double bounce & OPERA bimodal failure
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: RAW NISAR L-BAND SENSOR (0:14 - 0:18) -->
+    <section class="slide flex-col lg:flex-row items-center justify-between gap-10 w-full max-w-7xl" data-duration="4">
+      <div class="flex-1 space-y-4">
+        <div class="inline-block px-3 py-1 rounded-full text-xs font-mono bg-cyan-950/60 border border-cyan-500/60 text-cyan-300 font-bold">
+          📡 SENSOR INGESTION
+        </div>
+        <h2 class="text-4xl lg:text-5xl font-black text-white leading-tight">
+          Direct NASA ASF Ingestion: <span class="text-cyan-400">NISAR L2 GCOV</span>
+        </h2>
+        <p class="text-slate-300 text-base leading-relaxed">
+          Instead of relying on web mockups, we ingest raw HDF5 scientific granules from <strong>NASA ASF (Earthdata Cloud)</strong>:
+        </p>
+        <ul class="space-y-2 text-sm text-slate-300 mono">
+          <li class="flex items-center gap-2">✔ Native 20m regular grid in EPSG:32719 UTM</li>
+          <li class="flex items-center gap-2">✔ Full-polarization HHHH & HVHV gamma0 power</li>
+          <li class="flex items-center gap-2">✔ Radiometrically terrain-corrected (GCOV)</li>
+          <li class="flex items-center gap-2">✔ Exact bitset mask handling (excluding anomaly bits)</li>
+        </ul>
+      </div>
+      <div class="flex-1 w-full max-h-[520px] rounded-2xl overflow-hidden border border-cyan-800/50 shadow-2xl relative">
+        <img src="output/video_frames/frame_03_nisar_raw_radar.png" class="w-full h-full object-cover ken-burns" alt="Raw NISAR Radar Backscatter">
+        <div class="absolute bottom-3 left-3 bg-slate-950/90 border border-slate-800 px-3 py-1 rounded text-xs mono text-cyan-300">
+          📍 Raw NISAR L2 GCOV Backscatter: 2026-09-09 Acquisition
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: OUR MATHEMATICAL INNOVATION (0:18 - 0:22) -->
+    <section class="slide flex-col lg:flex-row items-center justify-between gap-10 w-full max-w-7xl" data-duration="4">
+      <div class="flex-1 space-y-4">
+        <div class="inline-block px-3 py-1 rounded-full text-xs font-mono bg-emerald-950/60 border border-emerald-500/60 text-emerald-300 font-bold">
+          ⚡ OUR INNOVATION
+        </div>
+        <h2 class="text-4xl lg:text-5xl font-black text-white leading-tight">
+          Multi-Scale Top-Hat <span class="text-emerald-400">Geometry Extraction</span>
+        </h2>
+        <p class="text-slate-300 text-base leading-relaxed">
+          Rivers are defined by <strong>spatial geometry</strong>, not a static decibel color. Our custom engine (<code>gcov_rivers.py</code>) executes:
+        </p>
+        <div class="grid grid-cols-2 gap-3 text-xs mono text-slate-300">
+          <div class="p-3 bg-slate-900 border border-slate-800 rounded-lg">
+            <strong class="text-cyan-300 block mb-1">1. Dual Top-Hat Filter (600m)</strong>
+            Extracts narrow ribbons relative to local background, capturing both dark water and bright riparian trees.
+          </div>
+          <div class="p-3 bg-slate-900 border border-slate-800 rounded-lg">
+            <strong class="text-amber-300 block mb-1">2. Morphological Elongation</strong>
+            Rejects blobs, shadows & buildings: requires Length ≥ 1500m, Width ≤ 100m, Aspect Ratio ≥ 3.
+          </div>
+          <div class="p-3 bg-slate-900 border border-slate-800 rounded-lg">
+            <strong class="text-rose-300 block mb-1">3. Coastal Surf Guard</strong>
+            Automated ocean buffering that discards breaking coastal wave foam.
+          </div>
+          <div class="p-3 bg-slate-900 border border-slate-800 rounded-lg">
+            <strong class="text-emerald-300 block mb-1">4. Centerline Skeleton</strong>
+            Mathematical thinning into vector river reaches for GIS and early warning systems.
+          </div>
+        </div>
+      </div>
+      <div class="flex-1 w-full max-h-[520px] rounded-2xl overflow-hidden border border-emerald-800/60 shadow-2xl relative">
+        <img src="output/video_frames/frame_04_tophat_channels.png" class="w-full h-full object-cover" alt="Top-Hat Detected Channels">
+        <div class="absolute bottom-3 left-3 bg-slate-950/90 border border-slate-800 px-3 py-1 rounded text-xs mono text-emerald-300">
+          📍 Extracted Channels: Cyan (Open Water) & Yellow (Vegetated Corridor)
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: VALIDATION & TELEMETRY (0:22 - 0:26) -->
+    <section class="slide flex-col lg:flex-row items-center justify-between gap-10 w-full max-w-7xl" data-duration="4">
+      <div class="flex-1 space-y-4">
+        <div class="inline-block px-3 py-1 rounded-full text-xs font-mono bg-purple-950/60 border border-purple-500/60 text-purple-300 font-bold">
+          🎯 RIGOROUS VALIDATION
+        </div>
+        <h2 class="text-4xl lg:text-5xl font-black text-white leading-tight">
+          Over <span class="text-purple-400">60% Agreement</span> with Ground Hydrology.
+        </h2>
+        <p class="text-slate-300 text-sm leading-relaxed">
+          We benchmarked the detected channels against the verified regional river network (<code>validate_nisar.py</code>) within a strict 120m buffer:
+        </p>
+        <div class="grid grid-cols-2 gap-3 text-center mono">
+          <div class="p-4 bg-slate-900/90 border border-purple-800/50 rounded-xl">
+            <span class="text-3xl font-black text-emerald-400">62.5%</span>
+            <span class="text-xs text-slate-400 block mt-1">Spatial Agreement (09-Sep)</span>
+          </div>
+          <div class="p-4 bg-slate-900/90 border border-purple-800/50 rounded-xl">
+            <span class="text-3xl font-black text-cyan-400">26 / 26</span>
+            <span class="text-xs text-slate-400 block mt-1">Automated Unit Tests Passing</span>
+          </div>
+        </div>
+        <p class="text-xs text-slate-400">
+          Every river reach carries live telemetry: length, mean width, elongation ratio, and backscatter profile.
+        </p>
+      </div>
+      <div class="flex-1 w-full max-h-[520px] rounded-2xl overflow-hidden border border-purple-800/60 shadow-2xl relative">
+        <img src="output/video_frames/frame_05_channel_telemetry_popup.png" class="w-full h-full object-cover ken-burns" alt="Channel Telemetry">
+        <div class="absolute bottom-3 left-3 bg-slate-950/90 border border-slate-800 px-3 py-1 rounded text-xs mono text-purple-300">
+          📍 Live GIS Feature: Reach length 2,840m · Width 79m · Mean dB -17.34
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: 12-DAY ORBITAL REPEAT CYCLE (0:26 - 0:30) -->
+    <section class="slide flex-col lg:flex-row items-center justify-between gap-10 w-full max-w-7xl" data-duration="4">
+      <div class="flex-1 space-y-4">
+        <div class="inline-block px-3 py-1 rounded-full text-xs font-mono bg-cyan-950/60 border border-cyan-500/60 text-cyan-300 font-bold">
+          🌍 OPERATIONAL DEPLOYMENT
+        </div>
+        <h2 class="text-4xl lg:text-5xl font-black text-white leading-tight">
+          12-Day Orbital Repeat <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">Flood Intelligence</span>.
+        </h2>
+        <p class="text-slate-300 text-sm leading-relaxed">
+          NISAR operates on an exact <strong>12-day orbital repeat cycle</strong>. Our dashboard provides decision-makers with:
+        </p>
+        <ul class="space-y-2 text-sm text-slate-300 mono">
+          <li class="flex items-center gap-2">🔄 Dual-date change detection (receding vs. expanding channels)</li>
+          <li class="flex items-center gap-2">📊 Real-time inundation area calculations (hectares)</li>
+          <li class="flex items-center gap-2">🏘️ Downstream vulnerable population exposure mapping</li>
+          <li class="flex items-center gap-2">🚨 Automated civil defense red alerts (+36d flood peak)</li>
+        </ul>
+      </div>
+      <div class="flex-1 w-full max-h-[520px] rounded-2xl overflow-hidden border border-cyan-700/60 shadow-2xl relative">
+        <img src="output/video_frames/frame_06_orbital_cycle_simulation.png" class="w-full h-full object-cover" alt="Orbital Cycle Simulation">
+        <div class="absolute bottom-3 left-3 bg-slate-950/90 border border-slate-800 px-3 py-1 rounded text-xs mono text-cyan-300">
+          📍 Timeline Simulation: +36d Orbital Repeat Flood Alert
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Voiceover & Subtitles Bar (Synchronized with 30s Pitch) -->
+  <footer class="w-full bg-slate-950/95 border-t border-slate-800/80 px-8 py-3.5 flex flex-col space-y-2 z-50">
+    <!-- Progress Bar -->
+    <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+      <div id="pitch-progress-bar" class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full w-0 transition-all duration-300"></div>
+    </div>
+
+    <!-- Subtitle Card -->
+    <div class="flex justify-between items-center text-xs">
+      <div class="flex items-center gap-2">
+        <span class="px-2 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 mono font-bold" id="pitch-timer">00:00 / 00:30</span>
+        <span class="text-slate-400 mono">VOICEOVER:</span>
+      </div>
+      <div id="pitch-subtitle" class="text-sm font-semibold text-slate-100 text-center flex-1 px-4 italic">
+        "Press 'Auto 30s Pitch' or use Left/Right arrow keys to navigate slides."
+      </div>
+      <div class="flex gap-2 mono text-slate-400 text-xs">
+        <span>[← Prev]</span>
+        <span>[Next →]</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const dotsContainer = document.getElementById('slide-dots');
+    const progressBar = document.getElementById('pitch-progress-bar');
+    const timerDisplay = document.getElementById('pitch-timer');
+    const subtitleDisplay = document.getElementById('pitch-subtitle');
+
+    const PITCH_SCRIPTS = [
+      "In arid mountainous regions, dry rivers can turn into deadly flash floods in hours. But how do we track them from space?",
+      "NASA's new NISAR L-band radar penetrates weather, but standard algorithms fail: dry desert mimics water, and official OPERA pipelines collapse on narrow channels.",
+      "We ingest raw HDF5 scientific granules from NASA ASF, accessing native 20-meter regular grids and full-polarization gamma-zero power.",
+      "We engineered a mathematical morphology pipeline: extracting continuous river ribbons and double-bounce riparian corridors.",
+      "Validated at over 60% spatial agreement with verified ground hydrology, backed by 26 automated unit tests.",
+      "Our interactive dashboard tracks 12-day orbital repeat cycles to predict flood onset and protect vulnerable communities."
+    ];
+
+    let currentSlide = 0;
+    let isPlaying = false;
+    let pitchInterval = null;
+    let elapsedTime = 0;
+    const TOTAL_DURATION = 30; // 30 seconds exact
+
+    // Setup slide dots
+    slides.forEach((_, idx) => {
+      const dot = document.createElement('button');
+      dot.className = `w-3 h-3 rounded-full transition ${idx === 0 ? 'bg-cyan-400 scale-125' : 'bg-slate-700 hover:bg-slate-500'}`;
+      dot.onclick = () => goToSlide(idx);
+      dotsContainer.appendChild(dot);
+    });
+
+    function updateDots() {
+      const dots = dotsContainer.querySelectorAll('button');
+      dots.forEach((dot, idx) => {
+        dot.className = `w-3 h-3 rounded-full transition ${idx === currentSlide ? 'bg-cyan-400 scale-125 shadow-lg shadow-cyan-400/50' : 'bg-slate-700 hover:bg-slate-500'}`;
+      });
+    }
+
+    function goToSlide(index) {
+      slides[currentSlide].classList.remove('active');
+      currentSlide = (index + slides.length) % slides.length;
+      slides[currentSlide].classList.add('active');
+      updateDots();
+      subtitleDisplay.textContent = `"${PITCH_SCRIPTS[currentSlide]}"`;
+    }
+
+    function toggleAutoPitch() {
+      if (isPlaying) {
+        stopAutoPitch();
+      } else {
+        startAutoPitch();
+      }
+    }
+
+    function startAutoPitch() {
+      isPlaying = true;
+      document.getElementById('pitch-play-icon').textContent = '⏸';
+      document.getElementById('pitch-play-text').textContent = 'Pause';
+      elapsedTime = 0;
+      goToSlide(0);
+
+      // Slide timing timeline:
+      // Slide 0: 0s - 6s (6s)
+      // Slide 1: 6s - 14s (8s)
+      // Slide 2: 14s - 18s (4s)
+      // Slide 3: 18s - 22s (4s)
+      // Slide 4: 22s - 26s (4s)
+      // Slide 5: 26s - 30s (4s)
+      const TIMELINE = [0, 6, 14, 18, 22, 26, 30];
+
+      pitchInterval = setInterval(() => {
+        elapsedTime += 0.1;
+        const progress = Math.min((elapsedTime / TOTAL_DURATION) * 100, 100);
+        progressBar.style.width = `${progress}%`;
+
+        const secs = Math.floor(elapsedTime).toString().padStart(2, '0');
+        timerDisplay.textContent = `00:${secs} / 00:30`;
+
+        for (let i = 0; i < TIMELINE.length - 1; i++) {
+          if (elapsedTime >= TIMELINE[i] && elapsedTime < TIMELINE[i + 1]) {
+            if (currentSlide !== i) goToSlide(i);
+            break;
+          }
+        }
+
+        if (elapsedTime >= TOTAL_DURATION) {
+          stopAutoPitch();
+        }
+      }, 100);
+    }
+
+    function stopAutoPitch() {
+      isPlaying = false;
+      document.getElementById('pitch-play-icon').textContent = '▶';
+      document.getElementById('pitch-play-text').textContent = 'Auto 30s Pitch';
+      clearInterval(pitchInterval);
+    }
+
+    // Keyboard navigation
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        goToSlide(currentSlide + 1);
+      } else if (e.key === 'ArrowLeft') {
+        goToSlide(currentSlide - 1);
+      }
+    });
+
+    // Initial subtitle
+    subtitleDisplay.textContent = `"${PITCH_SCRIPTS[0]}"`;
+  </script>
+</body>
+</html>
