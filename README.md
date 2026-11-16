@@ -173,6 +173,39 @@ node --test tests/river-geometry.test.js
 
 ---
 
+
+
+---
+
+## 🌋 Volcano & Lahar Monitoring (Misti, Sabancaya, Chachani, Ubinas)
+
+The platform integrates hydrological risk with active volcanism:
+* **Hydrological-Volcanic Coupling:** Rainfalls over Misti remit pyroclastic material and ash into dry quebradas (*torrenteras*: San Lázaro, Huarangal, Agua Salada), producing destructive **lahar debris flows** directly impacting urban Arequipa and discharging into the **Chili River**.
+* **INGEMMET / CENEPRED Hazard Zoning:** High hazard proximal circle (7–8 km), moderate lahar hazard (15 km), and distal ashfall dispersion (28 km).
+* **NISAR L-Band SAR Surface Characterization:** Cross-polarization ($HV/HH$) analysis to discern rough andesitic lava blocks from smooth ash mantles.
+
+Run volcano GeoJSON layer generator:
+```bash
+python volcano_sar.py
+```
+
+---
+
+## 🛰️ NASA NISAR L2 GCOV (0.5-Year Catalog & Automated Downloader)
+
+The repository provides a complete verified catalog and downloader for **123 science HDF5 (`.h5`) scenes** covering Arequipa across the last 6 months under official release `P05023`:
+* `AREQUIPA_DESCARGAS_H5.md`: Complete human-readable table of scenes and direct NASA ASF download links.
+* `AREQUIPA_NISAR_H5_ULTIMOS_6_MESES.json`: Machine-readable metadata of all 123 scenes.
+* `descargar_nisar_arequipa.py`: Automated download script with resume support and NASA Earthdata OAuth handling.
+
+```bash
+# List available NISAR scenes in Arequipa
+python descargar_nisar_arequipa.py --list
+
+# Download Chili River / Urban Arequipa scenes
+python descargar_nisar_arequipa.py --zone chili --dest data/nisar
+```
+
 ## 👥 Authors & Team
 
 Developed by **Space Society** for the **NASA Space Apps Challenge**:

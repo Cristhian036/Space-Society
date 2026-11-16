@@ -1,0 +1,154 @@
+{
+  "type": "FeatureCollection",
+  "name": "Corredores_Lahares_Arequipa",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -71.425,
+            -16.29
+          ],
+          [
+            -71.458,
+            -16.312
+          ],
+          [
+            -71.492,
+            -16.34
+          ],
+          [
+            -71.518,
+            -16.375
+          ],
+          [
+            -71.534,
+            -16.393
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Torrentera San Lázaro",
+        "volcano": "Misti (Flanco Oeste)",
+        "discharge": "Río Chili (Zona Urbana / Puente Grau)",
+        "length_km": 14.2,
+        "slope_pct": 18.5,
+        "vulnerability": "Crítica",
+        "districts": "Alto Selva Alegre, Arequipa Cercado, Yanahuara",
+        "infrastructure": "Puente Grau, Torrentera San Lázaro canalizada, Vía Juan de la Torre"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -71.415,
+            -16.31
+          ],
+          [
+            -71.442,
+            -16.345
+          ],
+          [
+            -71.478,
+            -16.375
+          ],
+          [
+            -71.512,
+            -16.398
+          ],
+          [
+            -71.531,
+            -16.408
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Torrentera Miraflores - Huarangal",
+        "volcano": "Misti (Flanco Suroeste)",
+        "discharge": "Río Chili (vía drenaje sur)",
+        "length_km": 16.8,
+        "slope_pct": 15.2,
+        "vulnerability": "Alta",
+        "districts": "Miraflores, Mariano Melgar, Cercado",
+        "infrastructure": "Av. Mariscal Castilla, Puentes peatonales, Canalizaciones urbanas"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -71.398,
+            -16.33
+          ],
+          [
+            -71.42,
+            -16.368
+          ],
+          [
+            -71.455,
+            -16.405
+          ],
+          [
+            -71.495,
+            -16.435
+          ],
+          [
+            -71.528,
+            -16.465
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Torrentera Agua Salada / Paucarpata",
+        "volcano": "Misti (Flanco Sur)",
+        "discharge": "Río Socabaya / Cuenca Baja Chili",
+        "length_km": 19.5,
+        "slope_pct": 12.8,
+        "vulnerability": "Alta",
+        "districts": "Chiguata, Paucarpata, José Luis Bustamante y Rivero, Socabaya",
+        "infrastructure": "Av. Avelino Cáceres, Plataformas de cultivo, Puente Sabandía"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -71.45,
+            -16.24
+          ],
+          [
+            -71.49,
+            -16.248
+          ],
+          [
+            -71.545,
+            -16.255
+          ],
+          [
+            -71.605,
+            -16.25
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Quebrada Huayrondo / Yura",
+        "volcano": "Misti - Chachani (Silla Norte)",
+        "discharge": "Río Yura / Cuenca Alta Chili",
+        "length_km": 15.1,
+        "slope_pct": 14.0,
+        "vulnerability": "Moderada",
+        "districts": "Yura, Cerro Colorado",
+        "infrastructure": "Carretera Arequipa - Yura, Vía Férrea, Planta Cementera"
+      }
+    }
+  ]
+}

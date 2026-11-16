@@ -1,0 +1,98 @@
+{
+  "type": "FeatureCollection",
+  "name": "Volcanes_Arequipa_NISAR",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.4084,
+          -16.2954
+        ]
+      },
+      "properties": {
+        "id": "misti",
+        "name": "Volcán Misti",
+        "type": "Estratovolcán activo",
+        "elevation_m": 5822,
+        "status": "Activo en reposo / Emisión fumarólica débil",
+        "alert_level": "Verde",
+        "last_eruption": "Siglo XV (aprox. 1440-1470 d.C.)",
+        "threat": "Lahares por lluvias en torrenteras urbanas, caída de tefra y flujos piroclásticos",
+        "distance_km": 17.5,
+        "sar_hh_db": -9.8,
+        "sar_roughness": "Muy alta (bloques de lava y andesita escarpada)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.857,
+          -15.787
+        ]
+      },
+      "properties": {
+        "id": "sabancaya",
+        "name": "Volcán Sabancaya",
+        "type": "Complejo estratovolcánico activo",
+        "elevation_m": 5976,
+        "status": "Erupción explosiva continua (emisión de ceniza y gases)",
+        "alert_level": "Naranja",
+        "last_eruption": "En proceso activo continuo desde 2016",
+        "threat": "Explosiones diarias, columnas de ceniza (>3.5 km), flujos piroclásticos en valle del Colca",
+        "distance_km": 72.0,
+        "sar_hh_db": -12.1,
+        "sar_roughness": "Variable (manto de ceniza fresca sobre roca rugosa)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -71.5303,
+          -16.1911
+        ]
+      },
+      "properties": {
+        "id": "chachani",
+        "name": "Volcán Chachani",
+        "type": "Complejo de domos y estratovolcán",
+        "elevation_m": 6057,
+        "status": "Inactivo / Sin actividad histórica",
+        "alert_level": "Verde",
+        "last_eruption": "Holoceno temprano (>10,000 años)",
+        "threat": "Flujos de detritos y lahares secundarios por deshielo hacia Yura y Uchumayo",
+        "distance_km": 21.0,
+        "sar_hh_db": -8.9,
+        "sar_roughness": "Alta (derrumbes rocosos, depósitos morrénicos)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -70.9031,
+          -16.3551
+        ]
+      },
+      "properties": {
+        "id": "ubinas",
+        "name": "Volcán Ubinas",
+        "type": "Estratovolcán con caldera",
+        "elevation_m": 5672,
+        "status": "Históricamente el más activo del Perú / Explosiones freatomagmáticas periódicas",
+        "alert_level": "Amarillo",
+        "last_eruption": "2023 (explosiones con columnas de 4 km)",
+        "threat": "Caída de ceniza en valle de Ubinas y cuenca alta del Tambo",
+        "distance_km": 68.0,
+        "sar_hh_db": -11.4,
+        "sar_roughness": "Media-Alta (depósitos de tefra y caldera colapsada)"
+      }
+    }
+  ]
+}

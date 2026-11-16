@@ -66,6 +66,16 @@ const I18N_DICT = {
     label_acquisition: "Acquisition:",
     btn_focus_nisar: "Focus NISAR Observed Reach",
     loading: "Loading…",
+    section_volcanoes: "VOLCANOES & LAHAR CORRIDORS",
+    desc_volcanoes: "Hazard zoning and lahar drainage pathways from Misti and Sabancaya toward urban Arequipa and the Chili River.",
+    btn_focus_misti: "Focus Misti (5,822m)",
+    btn_focus_sabancaya: "Sabancaya (Active)",
+    label_telemetry: "Radar Telemetry:",
+    label_high_hazard: "High (7 km)",
+    label_lahar_hazard: "Lahar (15 km)",
+    label_ash_hazard: "Ash (28 km)",
+    volcano_status_default: "Click 'Focus Misti' or toggle checkbox to visualize cones and lahar channels.",
+
 
     section_gcov_water: "GCOV: SURFACE WATER BY DATE",
     label_zone: "Zone:",
@@ -265,6 +275,16 @@ const I18N_DICT = {
     label_acquisition: "Adquisición:",
     btn_focus_nisar: "Enfocar tramo observado NISAR",
     loading: "Cargando…",
+    section_volcanoes: "MONITOREO VOLCÁNICO Y LAHARES",
+    desc_volcanoes: "Zonificación de peligro y corredores de lahares desde el Misti y Sabancaya hacia Arequipa urbana y el Río Chili.",
+    btn_focus_misti: "Enfocar Misti (5,822m)",
+    btn_focus_sabancaya: "Sabancaya (Activo)",
+    label_telemetry: "Telemetría Radar:",
+    label_high_hazard: "Alto (7 km)",
+    label_lahar_hazard: "Lahar (15 km)",
+    label_ash_hazard: "Ceniza (28 km)",
+    volcano_status_default: "Haz clic en 'Enfocar Misti' o activa la casilla para ver conos y torrenteras.",
+
 
     section_gcov_water: "GCOV: AGUA POR FECHA",
     label_zone: "Zona:",

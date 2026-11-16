@@ -424,6 +424,39 @@
             </div>
           </div>
 
+          <!-- 3. Volcano Monitoring & Lahar Corridors -->
+          <div class="bg-elevated/70 border border-borderline rounded p-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="text-[11.5px] font-semibold text-danger flex items-center gap-1.5 cursor-pointer">
+                <span data-i18n="section_volcanoes">VOLCANOES & LAHAR CORRIDORS</span>
+              </label>
+              <input type="checkbox" id="toggle-volcanoes" onchange="toggleVolcanoLayer()" class="accent-danger w-4 h-4 cursor-pointer">
+            </div>
+            <p class="text-[10.5px] text-[#94a3b8] leading-snug" data-i18n="desc_volcanoes">
+              Hazard zoning and lahar drainage pathways from Misti and Sabancaya toward urban Arequipa and the Chili River.
+            </p>
+            <div class="grid grid-cols-2 gap-1.5 pt-0.5">
+              <button onclick="focusVolcano('misti')" class="h-6 rounded bg-elevated hover:bg-[#1a222d] border border-borderline text-[11px] font-medium text-danger transition cursor-pointer flex items-center justify-center gap-1">
+                <span>🌋</span> <span data-i18n="btn_focus_misti">Focus Misti (5,822m)</span>
+              </button>
+              <button onclick="focusVolcano('sabancaya')" class="h-6 rounded bg-elevated hover:bg-[#1a222d] border border-borderline text-[11px] font-medium text-[#f97316] transition cursor-pointer flex items-center justify-center gap-1">
+                <span>💨</span> <span data-i18n="btn_focus_sabancaya">Sabancaya (Active)</span>
+              </button>
+            </div>
+            <div class="bg-base p-2 rounded border border-borderline text-[10px] font-mono space-y-1">
+              <div class="flex justify-between text-[#94a3b8]">
+                <span data-i18n="label_telemetry">Radar Telemetry:</span>
+                <span class="text-ok font-bold">L-Band GCOV</span>
+              </div>
+              <div class="text-[9px] text-[#94a3b8] flex items-center gap-2">
+                <span class="inline-block w-2 h-2 rounded-full bg-danger"></span> <span data-i18n="label_high_hazard">High (7 km)</span>
+                <span class="inline-block w-2 h-2 rounded-full bg-[#f97316]"></span> <span data-i18n="label_lahar_hazard">Lahar (15 km)</span>
+                <span class="inline-block w-2 h-2 rounded-full bg-[#eab308]"></span> <span data-i18n="label_ash_hazard">Ash (28 km)</span>
+              </div>
+            </div>
+            <p id="volcano-status-text" class="text-[9.5px] text-[#64748b] italic" data-i18n="volcano_status_default">Click 'Focus Misti' or toggle checkbox to visualize cones and lahar channels.</p>
+          </div>
+
           <!-- 4. Vector Layers and Basemap -->
           <div class="bg-elevated/70 border border-borderline rounded p-3 space-y-2 text-[11.5px]">
             <span class="block text-[11px] font-semibold text-[#94a3b8]" data-i18n="section_aux_layers">Auxiliary Layers & Basemap</span>
@@ -752,5 +785,6 @@
   <script src="js/app.js"></script>
   <script src="js/gcov-layer.js"></script>
   <script src="js/nisar-rivers.js"></script>
+  <script src="js/volcano-layer.js"></script>
 </body>
 </html>
