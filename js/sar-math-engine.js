@@ -21,7 +21,12 @@ let mathAbort = null;
 let mathMoveTimer = null;
 let mathLastResult = null;
 
-const HYDRO_API = 'http://localhost:8050/api/compute-rivers';
+// In production/domain or reverse proxy, use relative '/api/compute-rivers'
+// On local dev without proxy, fall back to 'http://localhost:8050/api/compute-rivers'
+const HYDRO_API = (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
+  (window.location.port === '8080' || window.location.port === '80' || window.location.port === '443' || window.location.port === '' || !window.location.hostname.includes('localhost'))
+  ? '/api/compute-rivers'
+  : 'http://localhost:8050/api/compute-rivers';
 
 function initMathEngineLayer() {
   if (!map) return;

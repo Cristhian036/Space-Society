@@ -1,0 +1,11 @@
+.git
+.gitignore
+node_modules
+__pycache__
+*.pyc
+.pytest_cache
+.dem_cache/dswx-lite
+output/diag_river
+tmp_*
+.diag*
+.tmp*
