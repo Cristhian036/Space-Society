@@ -1,8 +1,8 @@
-// Space Society - Motor Nacional de Lectura Masiva SAR (Perú Completo) y Detección Automática de Ríos por Retrodispersión
+// Space Society - National Massive SAR Reading Engine (All Peru) and Automated River Detection by Backscatter
 let map;
 let currentBasin = 'camana';
-let currentCycleIndex = 3; // Ciclo 4 (+36d: 06-17 Feb - Pico de Crecida) por defecto
-let currentTrackFilter = 'all'; // Todos los bloques activos a la vez por defecto
+let currentCycleIndex = 3; // Cycle 4 (+36d: 06-17 Feb - Peak Flood Crest) by default
+let currentTrackFilter = 'all'; // All active swaths simultaneously by default
 let sarThresholdDb = -14.0;
 let detectionMode = 'strict_sar_intersect';
 let activeBasemapLayer;
@@ -14,13 +14,13 @@ let playInterval = null;
 let currentMatchedScenes = [];
 let liveFetchedAsfScenes = [];
 
-// Grupos de Capas en Leaflet
+// Leaflet Layer Groups
 let riverLayerGroup;
 let floodLayerGroup;
 let swathLayerGroup;
 let criticalPointsGroup;
 
-// Configuración de Mapas Base
+// Basemap Configurations
 function getBasemapConfig(key) {
   const savedKey = localStorage.getItem('carto_api_key') || '';
   const configs = {
@@ -94,7 +94,7 @@ function initMap() {
     preferCanvas: false
   });
 
-  // Crear Panes con Z-Index explícitos para garantizar que los ríos detectados SIEMPRE brillen sobre los bloques SAR
+  // Create Map Panes with explicit z-indices to guarantee detected rivers ALWAYS render above SAR swaths
   map.createPane('swathPane');
   map.getPane('swathPane').style.zIndex = 380;
 
@@ -109,17 +109,17 @@ function initMap() {
   map.createPane('criticalPane');
   map.getPane('criticalPane').style.zIndex = 660;
 
-  // Imagen de radar NISAR: por debajo de los ríos, por encima del fondo.
+  // NISAR radar image: below rivers, above background basemap
   map.createPane('nisarPane');
   map.getPane('nisarPane').style.zIndex = 520;
   map.getPane('nisarPane').style.pointerEvents = 'none';
 
-  // Detección de cauces sobre la imagen de radar.
+  // River channel detection on top of radar image
   map.createPane('nisarMaskPane');
   map.getPane('nisarMaskPane').style.zIndex = 600;
   map.getPane('nisarMaskPane').style.pointerEvents = 'none';
 
-  // Agua candidata GCOV: se ve, pero no debe tapar la imagen de radar.
+  // GCOV candidate water: visible, but does not occlude the radar image
   map.createPane('gcovPane');
   map.getPane('gcovPane').style.zIndex = 540;
   map.getPane('gcovPane').style.pointerEvents = 'none';
@@ -132,10 +132,10 @@ function initMap() {
 
   L.control.zoom({ position: 'topleft' }).addTo(map);
 
-  // Mapa Base Inicial: Esri Satelital
+  // Initial Basemap: Esri World Imagery Satellite
   switchBasemap('esri_satellite');
 
-  // Capa Oficial WMS de la Autoridad Nacional del Agua (ANA - GeoSNIRH)
+  // Official WMS Layer from National Water Authority (ANA - GeoSNIRH)
   anaWmsLayer = L.tileLayer.wms('https://geosnirh.ana.gob.pe/server/services/RecursosHidricosANA_MIL1/MapServer/WMSServer', {
     layers: '0,1,2,3,4,5',
     format: 'image/png',
@@ -295,7 +295,7 @@ function getZoomScaleFactor() {
   return 1.45;
 }
 
-// Algoritmo Geométrico: Ray-Casting Point-in-Polygon para saber si un vértice de río cae dentro de un Bloque SAR activo
+// Geometric Algorithm: Ray-Casting Point-in-Polygon to determine if a river vertex lies inside an active SAR swath
 function isPointInPolygon(pt, poly) {
   return RiverGeometry.pointInPolygon(pt, poly);
 }
@@ -308,7 +308,7 @@ function isPointInsideAnyActiveSwath(pt, activePolygons) {
   return false;
 }
 
-// Particionar un segmento de río en sub-tramos que están FÍSICAMENTE DENTRO de los Bloques SAR activos
+// Partition a river segment into sub-reaches physically INSIDE active SAR swaths
 function extractSubSegmentsInsideSar(segment, activePolygons) {
   if (detectionMode === 'global_all') return [segment];
   return RiverGeometry.clipLineToPolygons(segment, activePolygons);
@@ -322,12 +322,12 @@ function getTrackDateForCycle(trackNum, cycle) {
   return cycle.dateTrack47;
 }
 
-// Resolver cuáles Bloques SAR están activos según el selector actual
+// Resolve which SAR swaths are active based on the current track filter
 function computeActiveSarScenes(basin, cycle) {
   let matched = [];
 
   if (currentTrackFilter === 'peru_all') {
-    // Todos los 118 bloques nacionales + bloques de la vista en vivo
+    // All 118 national swaths + live view swaths
     const national = (typeof PERU_NATIONAL_SAR_SCENES !== 'undefined') ? PERU_NATIONAL_SAR_SCENES : [];
     matched = [...national, ...liveFetchedAsfScenes];
   } else {
@@ -357,7 +357,7 @@ function computeActiveSarScenes(basin, cycle) {
   return matched;
 }
 
-// Función Maestra: Renderiza Bloques SAR Activos y ejecuta la Detección de Ríos por Señal SAR dentro de los Bloques
+// Master Function: Renders active SAR swaths and executes SAR signal river detection inside swaths
 function updateAllVisuals(flyToBasin = false) {
   const basin = BASINS[currentBasin];
   const cycle = ORBITAL_CYCLES[currentCycleIndex];
@@ -372,7 +372,7 @@ function updateAllVisuals(flyToBasin = false) {
   const userOpacity = opacitySlider ? (opacitySlider.value / 100) : 0.90;
   const zScale = getZoomScaleFactor();
 
-  // 1. OBTENER Y DIBUJAR TODOS LOS BLOQUES SAR ACTIVOS
+  // 1. RETRIEVE AND RENDER ALL ACTIVE SAR SWATHS
   currentMatchedScenes = computeActiveSarScenes(basin, cycle);
   const activePolygons = currentMatchedScenes.map(s => s.footprint).filter(f => f && f.length >= 3);
 
@@ -381,17 +381,17 @@ function updateAllVisuals(flyToBasin = false) {
   let detectedRiverCount = 0;
   let totalDetectedVertices = 0;
 
-  // Líneas finas y nítidas moduladas sutilmente por el ciclo de 12 días
+  // Crisp, fine lines subtly modulated across the 12-day orbital cycle
   const expFactor = 1.0 + cycle.floodIntensity * 0.45;
   const outerW = Math.min(4.2, Math.max(2.2, +(expFactor * 2.4 * zScale).toFixed(1)));
   const midW = Math.min(2.6, Math.max(1.4, +(expFactor * 1.6 * zScale).toFixed(1)));
   const coreW = Math.min(1.4, Math.max(0.9, +(expFactor * 0.9 * zScale).toFixed(1)));
 
-  // 2. PROCESAR LAS 4 CUENCAS DETALLADAS DE AREQUIPA (7,334 Puntos GPS)
+  // 2. PROCESS THE 4 DETAILED AREQUIPA BASINS (7,334 GPS Coordinates)
   Object.keys(BASINS).forEach(bKey => {
     const bData = BASINS[bKey];
     const isCurrent = bKey === currentBasin;
-    // Retrodispersión efectiva de la cuenca en este ciclo de 12 días
+    // Effective basin backscatter in this 12-day orbital cycle
     const riverDb = cycle.sarBackscatterDb - (isCurrent ? 0.5 : 0.0);
     const passesThreshold = riverDb <= sarThresholdDb;
     let basinDetected = false;
@@ -400,7 +400,7 @@ function updateAllVisuals(flyToBasin = false) {
       const bName = typeof getBasinName === 'function' ? getBasinName(bKey) : bData.name;
       const cycleInfo = typeof getCycleText === 'function' ? getCycleText(currentCycleIndex) : cycle;
 
-      // Trazo base del río (siempre visible para referencia geográfica)
+      // Baseline river channel trace (always visible for geographic reference)
       L.polyline(seg, {
         pane: 'riversTopPane',
         color: '#0284c7',
@@ -416,14 +416,14 @@ function updateAllVisuals(flyToBasin = false) {
         </div>
       `).addTo(riverLayerGroup);
 
-      // DETECCIÓN SAR: Extraer todos los tramos de este río que caen DENTRO de los Bloques SAR activos y cumplen el umbral dB
+      // SAR DETECTION: Extract all river reaches falling INSIDE active SAR swaths that satisfy the dB threshold
       if (passesThreshold) {
         const subSegs = extractSubSegmentsInsideSar(seg, activePolygons);
         subSegs.forEach(sub => {
           basinDetected = true;
           totalDetectedVertices += sub.length;
 
-          // Halo exterior de anomalía radar
+          // Outer radar anomaly glow
           L.polyline(sub, {
             pane: 'floodPane',
             color: '#0284c7',
@@ -433,7 +433,7 @@ function updateAllVisuals(flyToBasin = false) {
             lineJoin: 'round'
           }).addTo(floodLayerGroup);
 
-          // Mancha principal de agua detectada por SAR
+          // Primary water reach detected by SAR
           L.polyline(sub, {
             pane: 'floodPane',
             color: '#00f5ff',
@@ -452,7 +452,7 @@ function updateAllVisuals(flyToBasin = false) {
             </div>
           `).addTo(floodLayerGroup);
 
-          // Núcleo brillante de reflexión especular (encima de todo)
+          // Bright specular reflection core (topmost layer)
           L.polyline(sub, {
             pane: 'riversTopPane',
             color: '#e0f2fe',
@@ -467,7 +467,7 @@ function updateAllVisuals(flyToBasin = false) {
 
     if (basinDetected) detectedRiverCount++;
 
-    // Puntos críticos de desborde
+    // Critical flood overflow checkpoints
     bData.criticalPoints.forEach(cp => {
       const insideSwath = isPointInsideAnyActiveSwath(cp.coords, activePolygons);
       const color = insideSwath && passesThreshold ? '#f43f5e' : '#64748b';
@@ -508,16 +508,16 @@ function updateAllVisuals(flyToBasin = false) {
     });
   });
 
-  // 3. PROCESAR LAS 29 CUENCAS NACIONALES ADICIONALES DE TODO EL PERÚ (Norte, Centro, Sur, Titicaca y Amazonía)
+  // 3. PROCESS THE 29 ADDITIONAL NATIONAL BASINS ACROSS ALL PERU (North, Center, South, Titicaca, and Amazon)
   if (typeof PERU_NATIONAL_RIVERS !== 'undefined') {
     PERU_NATIONAL_RIVERS.forEach(natRiver => {
-      // Ajustar firma dB del río nacional según el ciclo temporal
+      // Adjust national river dB signature based on temporal cycle
       const effectiveDb = +(natRiver.baseBackscatterDb - (cycle.floodIntensity * 2.5)).toFixed(1);
       const passesThreshold = effectiveDb <= sarThresholdDb;
       let natDetected = false;
 
       natRiver.segments.forEach(seg => {
-        // Cauce base nacional
+        // National baseline river channel
         L.polyline(seg, {
           pane: 'riversTopPane',
           color: '#0369a1',
@@ -571,7 +571,7 @@ function updateAllVisuals(flyToBasin = false) {
     });
   }
 
-  // 4. ACTUALIZAR PANELES DE LECTURA SAR Y TELEMETRÍA
+  // 4. UPDATE SAR TELEMETRY AND METRIC HUD PANELS
   const refSuffix = typeof t === 'function' ? t('ref_rivers_count_suffix') : ' REFERENCE RIVERS';
   document.getElementById('detected-rivers-count').textContent = `${detectedRiverCount}${refSuffix}`;
   document.getElementById('header-active-stats').textContent = typeof t === 'function' ? t('header_status') : 'NISAR L2 GCOV · 20m NATIVE MESH';
@@ -623,7 +623,7 @@ function updateAllVisuals(flyToBasin = false) {
   }
 }
 
-// Renderizar los polígonos de todos los Bloques Orbitales SAR activos y poblar el lector de escenas
+// Render polygons for all active orbital SAR swaths and populate the scenes reader list
 function renderOrbitalSwaths(scenes) {
   const trackColors = {
     47: '#818cf8',  // Indigo
@@ -674,7 +674,7 @@ function renderOrbitalSwaths(scenes) {
     poly.addTo(swathLayerGroup);
   });
 
-  // Actualizar lector de escenas SAR en el panel izquierdo
+  // Update SAR scenes reader in the left panel
   const readerList = document.getElementById('sar-scenes-reader-list');
   if (readerList) {
     readerList.innerHTML = '';
@@ -708,7 +708,7 @@ function renderOrbitalSwaths(scenes) {
   }
 }
 
-// Proyectar las imágenes radar reales de NASA ASF de los bloques activos (hasta 20 simultáneos para fluidez)
+// Project live NASA ASF radar browse images on active swaths (up to 24 simultaneous for smooth rendering)
 function showAllMatchedSceneOverlays() {
   realSarOverlayGroup.clearLayers();
 
@@ -784,7 +784,7 @@ function toggleRealSarImageOverlay(forceOn = false) {
   }
 }
 
-// Consulta en Vivo a la API de NASA ASF (Alaska Satellite Facility) para cualquier zona del Perú que el usuario esté mirando
+// Live query to NASA ASF API (Alaska Satellite Facility) for current viewport bounds
 async function fetchLiveAsfForCurrentView() {
   if (!map) return;
   const btnText = document.getElementById('btn-live-asf-text');
@@ -853,7 +853,7 @@ async function fetchLiveAsfForCurrentView() {
   }
 }
 
-// Activar Vista Nacional de Todo el Perú (118 Bloques SAR + 33 Cuencas Hidrográficas Activas a la Vez)
+// Activate National Peru View (118 SAR Swaths + 33 Active River Basins Simultaneously)
 function activateNationalPeruView() {
   document.querySelectorAll('.basin-btn').forEach(btn => btn.classList.remove('active'));
   const btnPeru = document.getElementById('btn-peru-all');
@@ -894,7 +894,7 @@ function zoomToAllTracks() {
 }
 
 function setupEventListeners() {
-  // Slider de Umbral de Detección SAR (dB)
+  // SAR Detection Threshold Slider (dB)
   const thresholdSlider = document.getElementById('sar-threshold-slider');
   const thresholdLabel = document.getElementById('threshold-db-label');
   if (thresholdSlider) {
@@ -906,7 +906,7 @@ function setupEventListeners() {
     });
   }
 
-  // Selector de Modo de Detección
+  // Detection Mode Selector
   const detModeSelect = document.getElementById('detection-mode-select');
   if (detModeSelect) {
     detModeSelect.addEventListener('change', (e) => {
@@ -915,7 +915,7 @@ function setupEventListeners() {
     });
   }
 
-  // Selector de Mapa Base
+  // Basemap Selector
   const basemapSelect = document.getElementById('basemap-selector');
   const cartoKeyContainer = document.getElementById('carto-key-container');
   const cartoApiKeyInput = document.getElementById('carto-api-key');
@@ -946,7 +946,7 @@ function setupEventListeners() {
     });
   }
 
-  // Selector de Bloques SAR (Track / Nacional)
+  // SAR Swaths Selector (Track / National)
   const trackSelector = document.getElementById('track-selector');
   if (trackSelector) {
     trackSelector.addEventListener('change', (e) => {
@@ -958,7 +958,7 @@ function setupEventListeners() {
     });
   }
 
-  // Toggles de Capas
+  // Layer Toggles
   const swathsCheckbox = document.getElementById('layer-swaths');
   if (swathsCheckbox) {
     swathsCheckbox.addEventListener('change', (e) => {

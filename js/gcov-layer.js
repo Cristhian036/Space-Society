@@ -1,7 +1,7 @@
 let processedGcovOverlay = null;
 let processedGcovRequest = 0;
 
-// Zonas con resultados GCOV publicados a partir de los HDF5 originales.
+// Zones with GCOV results published from the original HDF5 files.
 const GCOV_REGIONS = {
   majes: { root: 'output/gcov_majes', label: 'Majes-Camaná (NISAR 22-Oct-2026)' },
   legacy_chili: { root: 'output/chili', label: 'Chili (exportación anterior)' },

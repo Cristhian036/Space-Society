@@ -1,4 +1,4 @@
-// Space Society - Red Hidrográfica de Alta Precisión (100% Nativa Step=1 + Hydro-Spectral Dijkstra Thalweg + Tributarios)
+// Space Society - High-Precision Hydrographic Network (100% Native Step=1 + Hydro-Spectral Dijkstra Thalweg + Tributaries)
 const ORBITAL_CYCLES = [
   {
     "cycleIndex": 0,

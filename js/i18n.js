@@ -685,7 +685,7 @@ function setLanguage(lang) {
   localStorage.setItem('nisar_lang', lang);
   document.documentElement.lang = lang;
 
-  // Actualizar botones de selector de idioma
+  // Update language selector buttons
   const btnEn = document.getElementById('lang-btn-en');
   const btnEs = document.getElementById('lang-btn-es');
   if (btnEn && btnEs) {
@@ -698,14 +698,14 @@ function setLanguage(lang) {
     }
   }
 
-  // Traducir todos los elementos marcados con data-i18n
+  // Translate all elements marked with data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     const val = t(key);
     if (val) el.textContent = val;
   });
 
-  // Traducir atributos placeholders o titles
+  // Translate placeholder or title attributes
   document.querySelectorAll('[data-i18n-title]').forEach(el => {
     const key = el.getAttribute('data-i18n-title');
     const val = t(key);
@@ -717,12 +717,12 @@ function setLanguage(lang) {
     if (val) el.setAttribute('placeholder', val);
   });
 
-  // Cerrar cualquier popup activo para forzar re-renderizado en el nuevo idioma
+  // Close any active popup to force re-rendering in the new language
   if (typeof map !== 'undefined' && map && typeof map.closePopup === 'function') {
     map.closePopup();
   }
 
-  // Actualizar visuales del mapa y telemetría activa
+  // Update map visuals and active telemetry
   if (typeof updateAllVisuals === 'function') {
     updateAllVisuals(false);
   }
@@ -735,7 +735,7 @@ function setLanguage(lang) {
   }
 }
 
-// Inicializar idioma en DOMContentLoaded
+// Initialize language on DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
   setLanguage(currentLang);
 });

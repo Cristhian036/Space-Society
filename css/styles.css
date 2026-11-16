@@ -1,6 +1,6 @@
 /* ==========================================================================
    SPACE SOCIETY — NISAR L-Band UI/UX System
-   Minimalismo cartográfico y editorial de alto rigor técnico
+   Cartographic minimalism and high technical rigor
    ========================================================================== */
 
 :root {
@@ -40,7 +40,7 @@ html, body {
   font-feature-settings: "tnum" 1, "zero" 1;
 }
 
-/* Scrollbars minimalistas */
+/* Minimalist scrollbars */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -77,14 +77,14 @@ html, body {
   z-index: 10;
 }
 
-/* Filtro para eliminar bordes negros de órbitas SAR */
+/* Filter to remove black borders from SAR orbital images */
 .sar-browse-image {
   filter: url(#remove-black-bg) contrast(1.22) saturate(1.2);
   mix-blend-mode: screen;
   pointer-events: none;
 }
 
-/* Sliders finos de precisión radiométrica */
+/* Fine sliders for radiometric precision */
 input[type="range"].thin-slider {
   -webkit-appearance: none;
   appearance: none;
@@ -119,7 +119,7 @@ input[type="range"].thin-slider.river-thumb::-webkit-slider-thumb {
   background: var(--river);
 }
 
-/* Selectores y botones de cuencas */
+/* Basin selectors and buttons */
 .basin-btn {
   color: var(--text-secondary);
   background: transparent;
@@ -143,7 +143,7 @@ input[type="range"].thin-slider.river-thumb::-webkit-slider-thumb {
   font-weight: 600;
 }
 
-/* Cartografía Leaflet oscura minimalista */
+/* Dark minimalist Leaflet cartography */
 .leaflet-container {
   background-color: var(--bg-base) !important;
   font-family: 'Inter', sans-serif !important;
@@ -194,7 +194,7 @@ input[type="range"].thin-slider.river-thumb::-webkit-slider-thumb {
   color: var(--text-secondary) !important;
 }
 
-/* Popups limpios de alto contraste */
+/* High-contrast clean popups */
 .leaflet-popup-content-wrapper {
   background: var(--bg-panel) !important;
   color: var(--text-primary) !important;
@@ -223,7 +223,7 @@ input[type="range"].thin-slider.river-thumb::-webkit-slider-thumb {
   color: var(--text-primary) !important;
 }
 
-/* Estilos de pestañas del panel lateral */
+/* Sidebar tab button styles */
 .sidebar-tab-btn {
   background: transparent;
   outline: none;
@@ -231,7 +231,7 @@ input[type="range"].thin-slider.river-thumb::-webkit-slider-thumb {
   transition: all 0.15s ease;
 }
 
-/* Toggles estilo minimalista */
+/* Minimalist switch toggles */
 .toggle-switch {
   position: relative;
   display: inline-block;

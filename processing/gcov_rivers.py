@@ -44,7 +44,7 @@ DEFAULT_MIN_LENGTH_M = 2000.0
 DEFAULT_MAX_WIDTH_M = 150.0
 DEFAULT_MIN_AREA_M2 = 6000.0
 DEFAULT_MIN_ELONGATION = 3.0
-# Distancia a la que se descarta una linea que solo es rompiente de olas.
+# Distance buffer used to discard lines that are merely coastal surf/breakers.
 SURF_GUARD_M = 400.0
 
 
@@ -152,8 +152,7 @@ def open_water_bodies(db, pixel_m, min_area_m2=5_000_000.0, max_std_db=3.0, size
     thr = float(np.percentile(values, 5.0))
     candidate = valid & (db < thr) & (std < max_std_db)
     if close_px > 1:
-        # El speckle rompe la superficie en fragmentos: se cierran para que el
-        # cuerpo de agua sea una sola region.
+        # Radar speckle breaks water surface into fragments; morphological closing merges them into single regions.
         candidate = ndi.binary_closing(candidate, structure=np.ones((close_px, close_px)))
     labels, n = ndi.label(candidate, structure=np.ones((3, 3)))
     if not n:
@@ -370,7 +369,7 @@ def run(before_path, after_path, bbox, output, scale_m=DEFAULT_SCALE_M, k_bright
                       for kind in per_date[label]["found"]} for label, _d, _m in dates}
 
     if len(dates) == 2:
-        # cambio entre fechas: agua candidata presente en una sola adquisición
+        # Multitemporal change: candidate water present in only one acquisition
         mask_b = per_date["before"]["kept"]["brillo"] | per_date["before"]["kept"]["oscuro"]
         mask_a = per_date["after"]["kept"]["brillo"] | per_date["after"]["kept"]["oscuro"]
         change = np.full(before.shape, 255, dtype=np.uint8)

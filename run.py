@@ -63,7 +63,7 @@ def main():
     if hasattr(signal, "SIGTERM"):
         signal.signal(signal.SIGTERM, shutdown)
 
-    # 1. Iniciar Microservicio
+    # 1. Start Microservice
     print(f"[1/2] Iniciando Microservicio Hidrológico en puerto {args.api_port}...")
     p_micro = subprocess.Popen(
         [sys.executable, MICROSERVICE_SCRIPT],
@@ -71,7 +71,7 @@ def main():
     )
     processes.append(p_micro)
 
-    # 2. Iniciar Servidor Web
+    # 2. Start Web Server
     print(f"[2/2] Iniciando Servidor Web Estático en puerto {args.port}...")
     p_web = subprocess.Popen(
         [sys.executable, "-m", "http.server", str(args.port)],
@@ -79,7 +79,7 @@ def main():
     )
     processes.append(p_web)
 
-    # Verificar salud
+    # Verify health
     print("  -> Comprobando estado de los servicios...")
     healthy = wait_for_service(f"http://127.0.0.1:{args.api_port}/health", timeout=6)
     if healthy:
@@ -102,7 +102,7 @@ def main():
         time.sleep(0.5)
         webbrowser.open(web_url)
 
-    # Mantener vivo esperando Ctrl+C o la salida de algún proceso
+    # Keep alive waiting for Ctrl+C or process exit
     try:
         while True:
             for p in processes:

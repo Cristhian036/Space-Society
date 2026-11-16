@@ -117,7 +117,7 @@ def sample_dem_elevation_and_depth(lat: float, lon: float, z: int = 10) -> tuple
     r, g, b = arr[py, px]
     elev = float(r * 256.0 + g + b / 256.0 - 32768.0)
 
-    # Muestrear vecindario de 15x15 px alrededor para calcular profundidad de cañón/valle (TPI/HAND)
+    # Sample 15x15 px neighborhood around coordinate to calculate canyon/valley depth (TPI/HAND)
     y0, y1 = max(0, py - 12), min(256, py + 13)
     x0, x1 = max(0, px - 12), min(256, px + 13)
     sub = arr[y0:y1, x0:x1]
@@ -138,11 +138,11 @@ def extract_refined_ab_initio_zone(
     guide_polylines: list | None = None,
 ):
     """
-    Ejecuta la extracción hidrológica D8 + Priority-Flood REFINADA:
-    - Rechaza sombras topográficas en laderas (solo quema agua donde TPI <= 1.5m y pendiente < 6°).
-    - Si existen trazos de talweg conocidos o detectados por agua, los talla profundamente (-25m)
-      en la matriz DEM para que el flujo D8 NUNCA se salga por tierra seca.
-    - Conserva la conectividad D8; el índice óptico no confirma agua.
+    Executes REFINED D8 + Priority-Flood hydrological extraction:
+    - Rejects topographic shadows on hillslopes (only burns water where TPI <= 1.5m and slope < 6 deg).
+    - Incises known or detected water thalweg polylines deeply (-25m) into the DEM matrix
+      preventing D8 drainage from leaking across dry upland terrain.
+    - Preserves D8 connectivity; optical proxy index does not confirm standing water.
     """
     x0, x1 = int(h.lon2tile_x(west, dem_zoom)), int(h.lon2tile_x(east, dem_zoom))
     y0, y1 = int(h.lat2tile_y(north, dem_zoom)), int(h.lat2tile_y(south, dem_zoom))
@@ -159,9 +159,9 @@ def extract_refined_ab_initio_zone(
     cell_area_km2 = np.repeat((mpp_rows ** 2 / 1e6)[:, None], W, axis=1)
     dist_ns = float(np.mean(mpp_rows))
 
-    # Topographic Position Index (TPI) y pendiente local para RECHAZAR sombras de cerros
+    # Topographic Position Index (TPI) and local slope to REJECT hillslope shadows
     z_mean_local = ndi.uniform_filter(Z, size=15)
-    tpi = Z - z_mean_local  # Negativo = fondo de valle/cañón; Positivo = cresta/ladera alta
+    tpi = Z - z_mean_local  # Negative = valley/canyon floor; Positive = ridge/high slope
     valley_incision = np.maximum(0.0, ndi.maximum_filter(Z, size=15) - Z)
 
     dz_dy, dz_dx = np.gradient(Z, dist_ns)
@@ -169,12 +169,12 @@ def extract_refined_ab_initio_zone(
 
     ocean = Z <= 0.0
 
-    # Probabilidad de agua / vegetación riparia ESTRICTAMENTE restringida a fondos de valle (evita irse por tierra)
+    # Surface water / riparian vegetation probability STRICTLY restricted to valley floors (avoids overland leakage)
     wp_raw = h.water_probability(img_rgb)
     in_valley_floor = (tpi <= 1.2) & (slope_deg < 7.5) & (~ocean)
     wp = np.where(in_valley_floor, wp_raw, 0.0).astype(np.float32)
 
-    # Detectar lagos reales en planicies
+    # Detect real lakes on flat plains
     relief = ndi.maximum_filter(Z, size=7) - ndi.minimum_filter(Z, size=7)
     lake_cand = (wp > 0.52) & (relief < 3.5) & (~ocean)
     lake_cand = ndi.binary_opening(lake_cand, iterations=2)
@@ -186,11 +186,11 @@ def extract_refined_ab_initio_zone(
         big[1:] = sizes >= 1.2
         lakes = big[lab]
 
-    # Suavizado mínimo (sigma=0.6) para no borrar riberas y tallado profundo (-18m) en agua de valle
+    # Minimal smoothing (sigma=0.6) to preserve banks and deep carving (-18m) into valley water
     Zs = ndi.gaussian_filter(Z, sigma=0.6)
     Zc = Zs - 18.0 * wp - 0.35 * np.minimum(valley_incision, 40.0)
 
-    # Si tenemos polilíneas guía del cauce principal, quemarlas como talweg de -28m en el DEM
+    # If guide polylines are available for main channel, burn as -28m thalweg into DEM
     burned_mask = np.zeros((H, W), dtype=bool)
     if guide_polylines:
         for poly in guide_polylines:
@@ -294,19 +294,19 @@ def load_national_and_arequipa_vectors():
     with open(AREQUIPA_DATA_JS, "r", encoding="utf-8") as f:
         text = f.read()
 
-    # Extraer bloques de riverSegments: [ ... ]
+    # Extract riverSegments blocks: [ ... ]
     return text
 
 
 def main():
     t0 = time.perf_counter()
-    print(f"[SQLITE PRECALC] Inicializando base de datos {DB_PATH}...")
+    print(f"[SQLITE PRECALC] Initializing database {DB_PATH}...")
     conn = sqlite3.connect(DB_PATH)
     init_db(conn)
     cur = conn.cursor()
 
-    # 1. Extraer polilíneas hidrográficas base desde js/arequipa-data.js usando Node o Python JSON parser
-    # Usaremos un pequeño comando en Node para exportar BASINS y PERU_NATIONAL_RIVERS como JSON limpio
+    # 1. Extract base hydrographic polylines from js/arequipa-data.js using Node or Python JSON parser
+    # Small Node command to cleanly export BASINS and PERU_NATIONAL_RIVERS as JSON
     import subprocess
 
     dump_js = """
@@ -336,11 +336,11 @@ def main():
     all_rows = []
     total_cells = 0
 
-    # 2. Precalcular con D8 + Priority-Flood + TPI Shadow Rejection las zonas críticas:
-    #    - Altiplano / Juliaca / Río Coata - Lagunillas - Titicaca (la zona de la captura del usuario)
-    #    - Alto Colca / Sumbay / Chalhuanca / Blanquillo (meandros altoandinos de Arequipa)
-    #    - Valle Majes - Camaná - Colca
-    #    - Valle Chili - Quilca - Sihuas
+    # 2. Precalculate critical zones using D8 + Priority-Flood + TPI Shadow Rejection:
+    #    - Altiplano / Juliaca / Coata River - Lagunillas - Lake Titicaca
+    #    - Upper Colca / Sumbay / Chalhuanca / Blanquillo (high-Andean puna meanders)
+    #    - Majes - Camaná - Colca Valley
+    #    - Chili - Quilca - Sihuas Valley
     titicaca_guides = []
     for nr in nat_rivers:
         if "titicaca" in nr.get("id", "").lower() or "coata" in nr.get("name", "").lower() or "ramis" in nr.get("name", "").lower():
@@ -420,9 +420,9 @@ def main():
         )
         print(f"     [OK] {len(segs)} tramos fieles extraídos ({cells:,} celdas procesadas).")
 
-    # 3. Además, indexar todos los cauces principales y tributarios de las 4 cuencas de Arequipa
-    #    y las 29 cuencas nacionales de todo el Perú con su telemetría DEM real (cota, profundidad de cañón, área D8, Strahler)
-    print("  -> Enriqueciendo e indexando las 33 cuencas hidrográficas del Perú en SQLite...")
+    # 3. Index all mainstems and tributaries of the 4 Arequipa basins
+    #    and the 29 national basins across Peru with real DEM telemetry (elevation, canyon depth, D8 area, Strahler order)
+    print("  -> Enriching and indexing 33 hydrographic basins of Peru in SQLite...")
     national_count = 0
 
     def add_verified_basin_segments(reg_key, b_name, seg_list, is_arequipa=False):
@@ -434,7 +434,7 @@ def main():
             mid_pt = pts[len(pts) // 2]
             elev, v_depth = sample_dem_elevation_and_depth(float(mid_pt[0]), float(mid_pt[1]), z=9)
 
-            # Jerarquía Strahler según longitud e importancia del tramo
+            # Strahler stream hierarchy based on segment length and reach importance
             n_pts = len(pts)
             str_order = 5 if idx < 3 or n_pts > 180 else (4 if n_pts > 70 else 3)
             area_km2 = round(float(n_pts * (18.5 if str_order == 5 else 7.2)), 1)
@@ -444,7 +444,7 @@ def main():
                 {
                     "region_key": reg_key,
                     "basin_name": b_name,
-                    "segment_name": f"{b_name} — Cauce Principal #{idx + 1}",
+                    "segment_name": f"{b_name} — Mainstem #{idx + 1}",
                     "strahler_order": str_order,
                     "area_km2": area_km2,
                     "water_prob": 0.0,
@@ -478,7 +478,7 @@ def main():
         ("peru_33_cuencas_verificadas", "Red Hidrográfica Nacional del Perú (33 Cuencas + DEM)", 10, 1250000, national_count),
     )
 
-    # Insertar todo en bloque dentro de SQLite
+    # Bulk insert into SQLite database
     cur.executemany(
         """
         INSERT INTO river_segments (

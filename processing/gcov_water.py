@@ -28,30 +28,30 @@ def power_to_db(power):
     return db
 
 
-# Anomalias y enfoque del radar en `inputDataExceptionMask` de GCOV.
+# Radar anomalies and focus bits in GCOV `inputDataExceptionMask`.
 #
-# El atributo `description` del producto define el bitset: "Bitwise OR of input
+# The product's `description` attribute defines the bitset: "Bitwise OR of input
 # data exception codes for each image pixel (0: no anomaly, 2: NISAR LSAR
 # qFSP-H1 sample slip). Also includes OR of validity mask bits, where each bit is
 # set on for fully-focused data or off for partially focused or missing data
 # (256:HH, 512:HV, 1024:VH, 2048:VV, 4096:LH, 8192:LV, 16384:RH, 32768:RV)".
 #
-# Por tanto el valor NO es cero en una escena valida: es un bitset. La version
-# P05036 escribe 768 = 256 + 512 (HH y HV enfocados, sin anomalias) en todo el
-# pie valido. Exigir `== 0` descartaba la escena completa.
-ANOMALY_BITS = 0b10  # 2: sample slip (anomalia real de los datos de entrada)
+# Therefore, the value is NOT zero in a valid scene: it is a bitset. Release
+# P05036 writes 768 = 256 + 512 (HH and HV focused, no anomalies) across the
+# entire valid footprint. Demanding `== 0` rejected the entire scene.
+ANOMALY_BITS = 0b10  # 2: sample slip (genuine input data anomaly)
 FOCUS_BITS = {"HHHH": 256, "HVHV": 512, "VVVV": 1024, "VHVH": 2048}
 
 
 def exception_mask_keep(exceptions, polarization="HHHH"):
-    """Pixels sin anomalias de entrada y con la polarizacion enfocada."""
+    """Pixels without input anomalies and with focused polarization."""
     ex = np.asarray(exceptions, dtype=np.uint32)
     fill = np.iinfo(ex.dtype).max
     ex = np.where(ex == fill, 0, ex)
     keep = (ex & ANOMALY_BITS) == 0
     bit = FOCUS_BITS.get(polarization)
     if bit and np.any((ex & bit) != 0):
-        # Solo si el granulo codifica el bit de enfoque hay que exigirlo.
+        # Only require the focus bit if the granule actively encodes it.
         keep &= (ex & bit) != 0
     return keep
 
@@ -126,9 +126,9 @@ def read_raster(path, bbox, polarization="HHHH", units="power", mask_values=None
                 if key in g["mask"].attrs:
                     valid &= ~np.isin(quality, np.atleast_1d(g["mask"].attrs[key]))
             if "inputDataExceptionMask" in g:
-                # Bitset: bit 2 = anomalias de entrada (sample slip);
-                # bit 256/512 = polarizacion enfocada. Un valor no nulo no
-                # significa por si solo que el pixel sea invalido.
+                # Bitset: bit 2 = input anomalies (sample slip);
+                # bit 256/512 = focused polarization. A non-zero value
+                # does not inherently signify an invalid pixel.
                 valid &= exception_mask_keep(g["inputDataExceptionMask"][rs, cs], polarization)
             if "numberOfLooks" in g:
                 looks = g["numberOfLooks"][rs, cs]

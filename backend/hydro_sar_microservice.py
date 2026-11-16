@@ -76,13 +76,13 @@ ALGORITHM_VERSION = "d8-connected-v3"
 TERRARIUM_URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
 IMAGERY_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
 
-# 8 vecinos: dy, dx
+# 8 neighbors: dy, dx
 DY8 = np.array([-1, -1, -1, 0, 0, 1, 1, 1], dtype=np.int64)
 DX8 = np.array([-1, 0, 1, -1, 1, -1, 0, 1], dtype=np.int64)
 
 
 # ----------------------------------------------------------------------------
-# Geometria Web Mercator
+# Web Mercator Geometry
 # ----------------------------------------------------------------------------
 def lon2tile_x(lon, z):
     return (lon + 180.0) / 360.0 * (2 ** z)
@@ -103,7 +103,7 @@ def tile_y2lat(y, z):
 
 
 # ----------------------------------------------------------------------------
-# Descarga con cache
+# Cached tile download
 # ----------------------------------------------------------------------------
 def _fetch_tile(kind, z, x, y):
     ext = "png" if kind == "dem" else "jpg"
@@ -139,12 +139,12 @@ def _mosaic(kind, z, x0, x1, y0, y1):
 
 
 # ----------------------------------------------------------------------------
-# Nucleos numericos (numba)
+# Numerical kernels (numba)
 # ----------------------------------------------------------------------------
 @njit(cache=True)
 def priority_flood_eps(z, seeds, eps):
-    """Priority-Flood + epsilon (Barnes et al. 2014). Devuelve DEM sin depresiones
-    ni planicies: cada celda tiene un vecino estrictamente mas bajo hacia una salida."""
+    """Priority-Flood + epsilon (Barnes et al. 2014). Returns depressionless and
+    flatless DEM: each cell has a strictly lower neighbor towards an outlet."""
     h, w = z.shape
     n = h * w
     out = z.copy().ravel()
@@ -475,7 +475,7 @@ def build_highres_water_channel_cost(dem_z, img_rgb):
 
 
 # ----------------------------------------------------------------------------
-# Geometria de polilineas
+# Polyline geometry
 # ----------------------------------------------------------------------------
 def douglas_peucker(pts, tol):
     if len(pts) < 3:
@@ -520,7 +520,7 @@ def chaikin(pts, iters=1):
 
 
 # ----------------------------------------------------------------------------
-# Indice de agua observada (imagen satelital alineada al DEM)
+# Observed water index (satellite imagery aligned to DEM)
 # ----------------------------------------------------------------------------
 def water_probability(rgb):
     valid = ~np.isnan(rgb[..., 0])
@@ -528,12 +528,12 @@ def water_probability(rgb):
     R, G, B = rgb[..., 0], rgb[..., 1], rgb[..., 2]
     br = (R + G + B) / 3.0
     loc = ndi.uniform_filter(br, size=31)
-    dark = (loc - br) / (loc + 12.0)                 # contraste de oscuridad local
-    blue = (B - R) / (B + R + 1.0)                   # agua profunda/limpia tiende a azul
+    dark = (loc - br) / (loc + 12.0)                 # local dark contrast
+    blue = (B - R) / (B + R + 1.0)                   # deep/clear water tends towards blue
     p_dark = np.clip((dark - 0.10) / 0.22, 0, 1) * np.clip((150.0 - br) / 70.0, 0, 1)
     p_blue = np.clip((blue - 0.04) / 0.14, 0, 1) * np.clip((140.0 - br) / 70.0, 0, 1)
     p = np.maximum(p_dark, p_blue)
-    # Vegetacion riparia (oasis lineales en valles desérticos de la costa peruana)
+    # Riparian vegetation (linear oases in desert valleys along Peruvian coast)
     green = (G - R) / (G + R + 1.0)
     p_veg = 0.6 * np.clip((green - 0.02) / 0.10, 0, 1) * np.clip((160.0 - br) / 60.0, 0, 1)
     p = np.maximum(p, p_veg)
@@ -543,7 +543,7 @@ def water_probability(rgb):
 
 
 # ----------------------------------------------------------------------------
-# Pipeline principal
+# Main pipeline
 # ----------------------------------------------------------------------------
 MAX_TILES = {"standard": 16, "high": 36, "ultra": 64}
 
@@ -572,7 +572,7 @@ def extract_rivers(south, north, west, east, res="high", sens=1.0, burn=True, bu
     img_rgb = None
     img_zoom = None
     if burn:
-        # Imagen a z+1 (doble resolucion) para captar cauces delgados; luego max-pooling 2x2
+        # Image at z+1 (double resolution) to capture thin channels; followed by 2x2 max-pooling
         if z >= 10:
             img_zoom = z + 1
             hi = _mosaic("img", img_zoom, 2 * x0, 2 * x1 + 1, 2 * y0, 2 * y1 + 1)
@@ -585,22 +585,22 @@ def extract_rivers(south, north, west, east, res="high", sens=1.0, burn=True, bu
     h, w = dem_rgb.shape[:2]
     Z = decode_dem(dem_rgb)
 
-    # Geometria por fila (metros por pixel en Mercator)
+    # Per-row geometry (meters per pixel in Mercator)
     rows = np.arange(h)
     lat_rows = np.array([tile_y2lat(y0 + (r + 0.5) / 256.0, z) for r in rows])
     mpp_rows = 156543.03392 * np.cos(np.radians(lat_rows)) / (2 ** z)
     cell_area_km2 = np.repeat((mpp_rows ** 2 / 1e6)[:, None], w, axis=1)
     dist_ns = float(np.mean(mpp_rows))
 
-    # 2. Suavizado adaptativo: fuerte en planicies (elimina terrazas de 1 m del DEM
-    #    que generan lineas rectas artificiales), leve en relieve montanoso.
+    # 2. Adaptive smoothing: strong on plains (removes 1m DEM terraces generating
+    #    artificial straight lines), gentle on mountainous relief.
     relief_raw = ndi.maximum_filter(Z, size=9) - ndi.minimum_filter(Z, size=9)
     flat_w = np.clip((25.0 - relief_raw) / 20.0, 0.0, 1.0)
     Zs = flat_w * ndi.gaussian_filter(Z, sigma=3.0) + (1.0 - flat_w) * ndi.gaussian_filter(Z, sigma=0.8)
 
     ocean = Z <= 0.0
 
-    # 3. Indice de agua + stream burning
+    # 3. Water index + stream burning
     wp = np.zeros_like(Zs, dtype=np.float32)
     lakes = np.zeros_like(ocean)
     if burn and img_rgb is not None:
@@ -611,7 +611,7 @@ def extract_rivers(south, north, west, east, res="high", sens=1.0, burn=True, bu
         else:
             wp = wp_hi
         wp = wp[:h, :w]
-        # 4. Lagos: agua + planicie + componente grande (>= ~1.5 km2)
+        # 4. Lakes: water + plain + large component (>= ~1.5 km2)
         relief = ndi.maximum_filter(Zs, size=7) - ndi.minimum_filter(Zs, size=7)
         lake_cand = (wp > 0.55) & (relief < 4.0) & ~ocean
         lake_cand = ndi.binary_opening(lake_cand, iterations=2)
@@ -636,12 +636,12 @@ def extract_rivers(south, north, west, east, res="high", sens=1.0, burn=True, bu
     sinks = ocean | lakes
     rec = d8_receivers(F, sinks, dist_ns, mpp_rows.astype(np.float64))
 
-    # 7. Acumulacion (km2)
+    # 7. Flow accumulation (km2)
     order = np.argsort(-F.ravel(), kind="stable").astype(np.int64)
     acc = accumulate(order, rec, cell_area_km2.ravel().astype(np.float64))
     timings["hydro_ms"] = int((time.perf_counter() - t0) * 1000)
 
-    # 8. Umbral de area de contribucion (auto segun extension de la vista)
+    # 8. Contributing area threshold (auto-scaled according to view extent)
     land = ~(ocean | lakes)
     total_km2 = float(cell_area_km2[land].sum())
     a_min = float(np.clip(total_km2 / 1200.0, 0.5, 400.0)) / max(0.2, sens)
@@ -654,13 +654,13 @@ def extract_rivers(south, north, west, east, res="high", sens=1.0, burn=True, bu
 
     so, nup = strahler(order, rec, stream)
 
-    # 9. Segmentacion por tramos
+    # 9. Reach segmentation
     stream_idx = np.nonzero(stream)[0]
     wp_flat = wp.ravel()
     z_flat = Z.ravel()
 
     def px_to_ll(pts):
-        # pts: array (k,2) en (col,row) pixel-center
+        # pts: array (k,2) in (col,row) pixel-center
         lons = tile_x2lon_arr(x0 + (pts[:, 0] + 0.5) / 256.0, z)
         lats = tile_y2lat_arr(y0 + (pts[:, 1] + 0.5) / 256.0, z)
         return np.column_stack([lats, lons])
@@ -685,7 +685,7 @@ def extract_rivers(south, north, west, east, res="high", sens=1.0, burn=True, bu
             "sarDb": None,
         })
 
-    # Filtro de legibilidad: si hay demasiados tramos, descartar ordenes bajos
+    # Legibility filter: if too many reaches, discard lower stream orders
     min_order = 1
     while len(links) > 3500 and min_order < max_order:
         min_order += 1
@@ -726,7 +726,7 @@ def tile_y2lat_arr(y, z):
 
 
 # ----------------------------------------------------------------------------
-# Servidor HTTP
+# HTTP Server
 # ----------------------------------------------------------------------------
 class Handler(BaseHTTPRequestHandler):
     def _headers(self, status=200):
@@ -788,7 +788,7 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     print(f"[SPACE SOCIETY] Hydro v2 en http://localhost:{PORT}  (numba={HAS_NUMBA})")
-    # Precompilar nucleos numba con un DEM minimo
+    # Warm up numba kernels with a minimal DEM
     _z = np.random.rand(8, 8)
     _s = np.zeros((8, 8), dtype=np.bool_)
     _s[0, :] = True

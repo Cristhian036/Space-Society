@@ -1,12 +1,12 @@
 /**
- * SPACE SOCIETY - Motor Hidrológico Ab-Initio v2 (frontend)
- * ----------------------------------------------------------
- * Pide al microservicio Python (:8050) la red de ríos calculada desde el DEM:
- *   Priority-Flood+ε (Barnes 2014) → D8 → acumulación en km² → umbral de área
- *   → orden de Strahler → polilíneas simplificadas (Douglas-Peucker + Chaikin).
- * Se dibujan SOLO líneas finas (canvas renderer), grosor según orden de Strahler:
- *   - Cian: tramo con agua/vegetación riparia observada (stream burning óptico)
- *   - Gris-azulado tenue: cauce/quebrada seca inferido solo por topografía
+ * SPACE SOCIETY - Ab-Initio Hydrological Engine v2 (frontend)
+ * -----------------------------------------------------------
+ * Queries Python microservice (:8050) for DEM-derived river networks:
+ *   Priority-Flood+ε (Barnes 2014) → D8 → accumulation in km² → area threshold
+ *   → Strahler order → simplified polylines (Douglas-Peucker + Chaikin).
+ * Draws crisp canvas polylines with weight scaled by Strahler stream order:
+ *   - Cyan: reaches with observed surface water / riparian corridor (optical stream burning)
+ *   - Faint blue-grey: dry channel / gulley inferred solely from topography
  */
 
 let mathVectorGroup = null;
@@ -126,7 +126,7 @@ function drawMathRivers(data) {
   const clipToSar =
     data.source !== 'reference_network' && typeof detectionMode !== 'undefined' && detectionMode === 'strict_sar_intersect';
 
-  // Dibujar de menor a mayor orden para que los troncos principales queden encima
+  // Draw from lowest to highest stream order so main trunks render on top
   const sorted = [...data.polylines].sort((a, b) => a.order - b.order);
 
   sorted.forEach((seg) => {
@@ -134,7 +134,7 @@ function drawMathRivers(data) {
     if (!wet && !mathShowDry && seg.evidence !== 'reference') return;
 
     const isMain = seg.isMainStem || seg.order >= 4;
-    // Líneas finas, nítidas y bien perfiladas (1.0 px a 2.5 px)
+    // Crisp, fine, well-profiled lines (1.0 px to 2.5 px)
     const weight = wet
       ? isMain
         ? Math.min(2.5, 1.3 + (seg.order - 2) * 0.35)
@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Consultar SQLite automáticamente al mover/zoom (debounce corto de 180ms porque SQLite responde en <5ms)
+  // Query SQLite automatically on map move/zoom (short 180ms debounce because SQLite responds in <5ms)
   const waitMap = setInterval(() => {
     if (typeof map === 'undefined' || !map) return;
     clearInterval(waitMap);
@@ -275,8 +275,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================================================
-// INTEGRACIÓN GOOGLE COLAB: NISAR L2 GCOV MULTITEMPORAL (HHHH ΔdB LOG-RATIO)
-// Valle Majes - Camaná (lon=-72.725, lat=-16.565, radio=3500m, EPSG:32718)
+// GOOGLE COLAB INTEGRATION: NISAR L2 GCOV MULTITEMPORAL (HHHH ΔdB LOG-RATIO)
+// Majes - Camaná Valley (lon=-72.725, lat=-16.565, radius=3500m, EPSG:32718)
 // ============================================================================
 let nisarColabOverlay = null;
 let nisarColabVectorGroup = null;
@@ -328,7 +328,7 @@ async function renderNisarColabLayer() {
 
   const isEn = typeof currentLang !== 'undefined' ? currentLang === 'en' : true;
 
-  // Marco delimitador del recorte NISAR L2 GCOV (7 km x 7 km, 350x350 px @ 20m)
+  // Bounding frame for NISAR L2 GCOV cutout (7 km x 7 km, 350x350 px @ 20m)
   L.rectangle(NISAR_COLAB_BOUNDS, {
     pane: 'criticalPane',
     color: '#22d3ee',
@@ -353,7 +353,7 @@ async function renderNisarColabLayer() {
     )
     .addTo(nisarColabVectorGroup);
 
-  // Cargar los 57 nodos de telemetría real extraídos de las matrices del Colab
+  // Load the 57 real telemetry nodes extracted from the Colab matrices
   if (!nisarColabTelemetryCache) {
     try {
       const resp = await fetch('assets/nisar_colab_telemetry.json');

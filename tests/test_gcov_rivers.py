@@ -22,12 +22,12 @@ def test_robust_z_is_scale_free():
 
 def test_bright_thin_channel_is_detected_and_blob_is_rejected():
     db = synthetic()
-    db[60, 20:140] += 7.0          # cauce claro y continuo
-    db[20:55, 20:55] += 9.0         # mancha brillante (sombra o estructura)
+    db[60, 20:140] += 7.0          # clear and continuous channel
+    db[20:55, 20:55] += 9.0         # bright patch (shadow or structure)
     masks, _ = r.detect_channels(db, size_px=15, k_bright=3.5, k_dark=3.5)
     lines, stats, kept = r.extract_lines(masks["brillo"], db, 20.0, 500.0, 200.0, 6000.0)
     assert len(lines) >= 1
-    # la mancha compacta no debe sobrevivir al filtro de forma
+    # the compact patch must not survive the shape filter
     for s in stats:
         assert s["elongation"] >= 2.0
         assert s["width_m"] <= 200.0
@@ -46,7 +46,7 @@ def test_dark_open_water_is_detected():
 
 def test_short_features_are_discarded():
     db = synthetic()
-    db[60, 20:35] += 9.0          # demasiado corto
+    db[60, 20:35] += 9.0          # too short
     masks, _ = r.detect_channels(db, size_px=15, k_bright=3.5, k_dark=3.5)
     lines, _, _ = r.extract_lines(masks["brillo"], db, 20.0, 500.0, 200.0, 6000.0)
     assert lines == []

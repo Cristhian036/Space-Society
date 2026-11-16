@@ -1,18 +1,18 @@
-/* Capa NISAR: imagen de radar GCOV y cauces detectados sobre ella.
+/* NISAR Layer: GCOV radar imagery and detected river channels overlaid.
  *
- * Los datos vienen de `gcov_rivers.py`: detección top-hat sobre la malla
- * nativa de 20 m de NISAR L2 GCOV, con filtro de forma y esqueleto.
- * La imagen SAR es la medida; la red de referencia del visor es contexto.
+ * Data source is `gcov_rivers.py`: top-hat morphology detection over the
+ * native 20 m NISAR L2 GCOV grid, with shape and skeleton filtering.
+ * The SAR image represents the physical measurement; the baseline network provides context.
  */
 let nisarRiverOverlay = null;
 let nisarRiverVectors = null;
 let nisarRiverRequest = 0;
 let nisarManifestCache = null;
-// La primera carga encuadra sobre la zona medida: si no, el recorte de NISAR
-// queda como un rectangulo pequeno dentro de la vista nacional.
+// First load fits bounds to the measured zone to prevent the NISAR tile
+// from appearing as an unnoticeable small rectangle in the national view.
 let nisarFirstFitDone = false;
 
-// Zonas con exportacion real de NISAR L2 GCOV.
+// Zones with authentic exported NISAR L2 GCOV products.
 const NISAR_REGIONS = {
   chili: { root: 'output/nisar_chili', label: 'Chili Valley (Measured Reach)' },
   majes: { root: 'output/nisar_chili', label: 'Chili Valley (Measured Reach)' }
@@ -55,8 +55,8 @@ function clearNisarRiversLayer() {
   if (nisarRiverVectors) { map.removeLayer(nisarRiverVectors); nisarRiverVectors = null; }
 }
 
-/* El selector de fecha se arma con las adquisiciones realmente exportadas:
-   si la carpeta tiene una sola fecha, el visor no ofrece un "antes" falso. */
+/* The date selector dynamically populates with exported acquisitions:
+   if the target folder contains only one date, the UI avoids presenting a fake "before" option. */
 function nisarSyncDateOptions(manifest) {
   const select = document.getElementById('nisar-rivers-date');
   if (!select) return;
@@ -122,7 +122,7 @@ async function renderNisarRiversLayer(fit = false) {
         { pane: 'nisarPane', opacity: 0.9, interactive: false }));
     }
     if (mode === 'channels') {
-      // La imagen de radar es la medida; la máscara y los vectores son la detección.
+      // The radar image represents the physical measurement; the mask and vectors represent the detection.
       nisarRiverOverlay.addLayer(L.imageOverlay(`${root}/${manifest.layers[sarKey]}`, bounds,
         { pane: 'nisarPane', opacity: 0.9, interactive: false }));
       if (manifest.layers[maskKey]) {

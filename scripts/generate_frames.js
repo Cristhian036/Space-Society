@@ -68,7 +68,7 @@ async function main() {
   await page.waitForTimeout(2000);
   await page.screenshot({ path: path.join(outDir, 'frame_01_national_challenge.png') });
 
-  // FRAME 2: RIO CHILI (Where simple methods fail - Urban & estiaje)
+  // FRAME 2: CHILI RIVER (Where simple methods fail - Urban & low flow)
   console.log('Capturing Frame 02: Rio Chili in Arequipa...');
   await page.evaluate(() => {
     zoomToBasin('chili');

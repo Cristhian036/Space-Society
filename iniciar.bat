@@ -8,7 +8,7 @@ echo   🛰️ SPACE SOCIETY - NISAR Hydro-Lens Launcher
 echo ========================================================
 echo.
 
-:: Verificar instalacion de Python
+:: Check Python installation
 python --version >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] No se encontro Python en el PATH.
@@ -17,7 +17,7 @@ if %ERRORLEVEL% neq 0 (
     exit /b 1
 )
 
-:: Verificar paquetes requeridos
+:: Check required packages
 python -c "import numpy, scipy, rasterio, PIL" >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo [INFO] Faltan algunas dependencias. Instalando requirements.txt...

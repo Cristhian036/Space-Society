@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="app_title">SPACE SOCIETY — Satellite River & Flood Monitoring (NISAR L-Band)</title>
   
-  <!-- Tipografía Editorial & Técnica: Inter & JetBrains Mono -->
+  <!-- Editorial & Technical Typography: Inter & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   
-  <!-- Tailwind CSS CDN con Paleta Semántica del Sistema de Diseño -->
+  <!-- Tailwind CSS CDN with Design System Semantic Palette -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -38,14 +38,14 @@
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
-  <!-- Estilos del Sistema de Diseño UI/UX Space Society -->
+  <!-- Space Society UI/UX Design System Styles -->
   <link rel="stylesheet" href="css/styles.css">
-  <!-- Motor de Internacionalización (i18n: Inglés por defecto + Español) -->
+  <!-- Internationalization Engine (i18n: English default + Spanish runtime) -->
   <script src="js/i18n.js"></script>
 </head>
 <body class="bg-base text-[#f1f5f9] h-screen w-screen flex flex-col font-sans overflow-hidden">
 
-  <!-- SVG filter para eliminar bordes negros orbitales de imágenes NASA -->
+  <!-- SVG filter to remove orbital black borders from NASA images -->
   <svg width="0" height="0" class="absolute pointer-events-none">
     <defs>
       <filter id="remove-black-bg" color-interpolation-filters="sRGB">
@@ -60,13 +60,13 @@
   </svg>
 
   <!-- ===================================================================== -->
-  <!-- 1. BARRA SUPERIOR ULTRA-LIMPIA (42px)                                 -->
+  <!-- 1. ULTRA-CLEAN TOP BAR (42px)                                         -->
   <!-- ===================================================================== -->
   <header class="h-[42px] min-h-[42px] w-full bg-panel border-b border-borderline px-3 flex items-center justify-between gap-3 z-30 flex-shrink-0">
     
-    <!-- Bloque Izquierdo: Emblema vectorial + Marca + Selectores de Cuenca -->
+    <!-- Left Block: Vector emblem + Branding + Basin Selectors -->
     <div class="flex items-center gap-2.5 min-w-0">
-      <!-- Emblema vectorial minimalista de radar -->
+      <!-- Minimalist radar vector emblem -->
       <div class="flex items-center gap-2 shrink-0">
         <svg class="w-4 h-4 text-water" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
           <circle cx="12" cy="12" r="9" stroke-opacity="0.35" />
@@ -87,7 +87,7 @@
 
       <span class="hidden md:inline-block h-3.5 w-px bg-borderline shrink-0"></span>
 
-      <!-- Selectores de Cuencas y Cobertura Nacional -->
+      <!-- Basin Selectors and National Coverage -->
       <div class="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
         <button onclick="activateNationalPeruView()" class="basin-btn text-ok border-borderline hover:border-ok/40" id="btn-peru-all" data-i18n="btn_peru_all" title="View all national SAR swaths and hydrological network">
           🇵🇪 All Peru (118 SAR)
@@ -110,10 +110,10 @@
       </div>
     </div>
 
-    <!-- Bloque Derecho: Selector de Idioma (Top Right) + Status + Reloj + ¿Cómo leer? + Panel -->
+    <!-- Right Block: Language Selector (Top Right) + Status + Clock + How to read? + Panel -->
     <div class="flex items-center gap-2 shrink-0">
       
-      <!-- Selector de Idioma: EN | ES (Ubicado en la parte superior derecha) -->
+      <!-- Language Selector: EN | ES (Positioned at top right) -->
       <div class="flex items-center bg-elevated border border-borderline rounded p-0.5 text-[11px] font-mono shrink-0">
         <button id="lang-btn-en" onclick="setLanguage('en')" class="px-2 py-0.5 rounded transition font-semibold cursor-pointer text-water bg-borderline/60" title="Switch to English">
           EN
@@ -125,25 +125,25 @@
 
       <span class="hidden md:inline-block h-3.5 w-px bg-borderline shrink-0"></span>
 
-      <!-- Pill de estado del radar -->
+      <!-- Radar status pill -->
       <div class="hidden lg:flex items-center gap-1.5 bg-elevated border border-borderline text-[#94a3b8] px-2.5 h-[26px] rounded font-mono text-[10.5px]">
         <span class="w-1.5 h-1.5 rounded-full bg-ok animate-pulse"></span>
         <span id="header-active-stats" data-i18n="header_status">NISAR L2 GCOV · 20m NATIVE MESH</span>
       </div>
 
-      <!-- Reloj UTC -->
+      <!-- UTC Clock -->
       <div class="hidden sm:block font-mono text-[11px] text-[#94a3b8] tabular-nums px-1" id="clock">
         --:--:-- UTC
       </div>
 
-      <!-- Botón "¿Cómo leer?" con Popover limpio -->
+      <!-- "How to read?" Button with clean Popover -->
       <div class="relative">
         <button id="btn-toggle-guide" onclick="toggleGuidePopover()" type="button" data-i18n="btn_how_to_read"
           class="h-[26px] px-2.5 rounded bg-elevated hover:bg-[#1a222d] border border-borderline text-[11.5px] font-medium text-[#94a3b8] hover:text-[#f1f5f9] transition-colors whitespace-nowrap cursor-pointer">
           How to read?
         </button>
 
-        <!-- Popover Guía rápida de 3 puntos -->
+        <!-- 3-point Quick Guide Popover -->
         <div id="guide-popover" class="hidden absolute right-0 top-8 w-80 bg-panel border border-borderline rounded p-4 shadow-2xl z-50">
           <div class="flex items-center justify-between pb-2.5 mb-3 border-b border-borderline">
             <span class="text-[12.5px] font-semibold text-[#f1f5f9]" data-i18n="guide_title">Technical Reading Guide</span>
@@ -174,7 +174,7 @@
         </div>
       </div>
 
-      <!-- Botón Colapsar / Expandir Panel Lateral -->
+      <!-- Collapse / Expand Side Panel Button -->
       <button onclick="toggleSidebar()" type="button" title="Toggle side panel" data-i18n-title="btn_panel"
         class="h-[26px] px-2.5 rounded bg-elevated hover:bg-[#1a222d] border border-borderline text-[11.5px] font-medium text-[#f1f5f9] flex items-center gap-1.5 transition-colors whitespace-nowrap cursor-pointer">
         <svg class="w-3.5 h-3.5 text-[#94a3b8]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
@@ -188,14 +188,14 @@
   </header>
 
   <!-- ===================================================================== -->
-  <!-- 2. ESPACIO DE TRABAJO PRINCIPAL: SIDEBAR RETRÁCTIL + MAPA             -->
+  <!-- 2. MAIN WORKSPACE: RETRACTABLE SIDEBAR + MAP                           -->
   <!-- ===================================================================== -->
   <main class="flex-1 flex overflow-hidden relative w-full h-[calc(100vh-42px)]">
 
-    <!-- PANEL LATERAL RETRÁCTIL (320px) CON 3 PESTAÑAS ESTRUCTURADAS -->
+    <!-- RETRACTABLE SIDE PANEL (320px) WITH 3 STRUCTURED TABS -->
     <aside id="main-sidebar" class="w-[320px] max-w-[90vw] bg-panel border-r border-borderline flex flex-col h-full overflow-hidden shrink-0 z-20 text-[12px]">
       
-      <!-- Cabecera Fija del Panel Lateral -->
+      <!-- Side Panel Fixed Header -->
       <div class="p-3.5 border-b border-borderline shrink-0 space-y-1.5">
         <div class="flex items-start justify-between gap-2">
           <h1 id="sidebar-basin-title" class="font-semibold text-[13.5px] text-[#f1f5f9] leading-snug">
@@ -211,13 +211,13 @@
           <span id="pass-badge">🛰️ ORBITAL CYCLE +36d</span>
         </div>
 
-        <!-- Resumen ejecutivo de 2 líneas -->
+        <!-- 2-line executive summary -->
         <p id="risk-desc" class="text-[11.5px] text-[#cbd5e1] leading-relaxed pt-0.5">
           Loading hydrological telemetry for the basin...
         </p>
       </div>
 
-      <!-- Navegación por 3 Pestañas Limpias -->
+      <!-- Clean 3-Tab Navigation -->
       <nav aria-label="Panel Sections" class="grid grid-cols-3 border-b border-borderline bg-base/60 shrink-0 text-center">
         <button id="tab-btn-resumen" onclick="switchSidebarTab('resumen')" class="sidebar-tab-btn py-2 text-[12px] font-medium text-[#f1f5f9] border-b-2 border-water transition-colors cursor-pointer" data-i18n="tab_summary">
           Summary
@@ -230,17 +230,17 @@
         </button>
       </nav>
 
-      <!-- Contenedor con Scroll de las 3 Pestañas -->
+      <!-- Scrollable Container for 3 Tabs -->
       <div class="flex-1 overflow-y-auto">
 
         <!-- ------------------------------------------------------------- -->
-        <!-- PESTAÑA 1: RESUMEN Y TELEMETRÍA                               -->
+        <!-- TAB 1: SUMMARY & TELEMETRY                                    -->
         <!-- ------------------------------------------------------------- -->
         <div id="tab-panel-resumen" class="p-3.5 space-y-4">
           
-          <!-- Dos métricas protagonistas con barra de acento de 3px -->
+          <!-- Two hero metrics with 3px accent bar -->
           <div class="space-y-3">
-            <!-- Métrica 1: Agua en superficie / Cauce medido -->
+            <!-- Metric 1: Surface Water / Measured Channel -->
             <div class="bg-elevated/80 border border-borderline rounded p-2.5">
               <div class="flex items-baseline justify-between mb-0.5">
                 <span class="text-[11px] text-[#94a3b8] font-medium" data-i18n="metric_water_title">Surface Water / Channel</span>
@@ -257,7 +257,7 @@
               </div>
             </div>
 
-            <!-- Métrica 2: Caudal estimado & Población expuesta -->
+            <!-- Metric 2: Estimated Discharge & Exposed Population -->
             <div class="bg-elevated/80 border border-borderline rounded p-2.5">
               <div class="flex items-baseline justify-between mb-0.5">
                 <span class="text-[11px] text-[#94a3b8] font-medium" data-i18n="metric_pop_title">Discharge & Exposed Pop.</span>
@@ -274,24 +274,24 @@
             </div>
           </div>
 
-          <!-- Código cuenca y ríos de referencia -->
+          <!-- Basin code and reference rivers -->
           <div class="flex items-center justify-between text-[11px] font-mono border-y border-borderline py-2">
             <span class="text-[#94a3b8]" id="ana-code">Camaná-Majes Basin (ANA: 13614)</span>
             <span class="text-water font-semibold" id="detected-rivers-count">33 REFERENCE RIVERS</span>
           </div>
 
-          <!-- Gráfico de firma retrodispersión sigma-0 cada 12 días -->
+          <!-- Sigma-0 backscatter signature chart every 12 days -->
           <div class="bg-elevated/60 border border-borderline rounded p-2.5 space-y-1.5">
             <div class="flex items-center justify-between text-[10.5px] font-mono">
               <span class="text-[#94a3b8] font-medium uppercase" data-i18n="backscatter_chart_title">σ⁰ Signature (12-Day Cycles)</span>
               <span class="text-water" data-i18n="chart_threshold_label">Threshold: -14 dB</span>
             </div>
             <div class="h-16 flex items-end justify-between gap-1 pt-1 px-1 border-b border-borderline relative" id="backscatter-chart">
-              <!-- Barras inyectadas dinámicamente por app.js -->
+              <!-- Bars injected dynamically by app.js -->
             </div>
           </div>
 
-          <!-- Acciones de visualización y exportación -->
+          <!-- Visualization and export actions -->
           <div class="space-y-2 pt-1">
             <span class="block text-[11px] font-medium text-[#94a3b8]" data-i18n="export_products_title">Product Exports</span>
             <div class="grid grid-cols-2 gap-2">
@@ -310,11 +310,11 @@
         </div>
 
         <!-- ------------------------------------------------------------- -->
-        <!-- PESTAÑA 2: CAPAS CARTOGRÁFICAS                                -->
+        <!-- TAB 2: CARTOGRAPHIC LAYERS                                    -->
         <!-- ------------------------------------------------------------- -->
         <div id="tab-panel-capas" class="hidden p-3.5 space-y-3.5">
           
-          <!-- 1. Capa NISAR Medido (Científica 20m) -->
+          <!-- 1. Measured NISAR Layer (20m Scientific Mesh) -->
           <div class="bg-elevated/70 border border-borderline rounded p-3 space-y-2">
             <div class="flex items-center justify-between">
               <label class="text-[11.5px] font-semibold text-ok flex items-center gap-1.5 cursor-pointer">
@@ -355,7 +355,7 @@
             </div>
           </div>
 
-          <!-- 2. GCOV: Agua en superficie por fecha -->
+          <!-- 2. GCOV: Surface water by date -->
           <div class="bg-elevated/70 border border-borderline rounded p-3 space-y-2">
             <div class="flex items-center justify-between">
               <label class="text-[11.5px] font-semibold text-water flex items-center gap-1.5 cursor-pointer">
@@ -400,7 +400,7 @@
             </div>
           </div>
 
-          <!-- 3. Red de Drenaje DEM + D8 -->
+          <!-- 3. DEM Drainage Network + D8 -->
           <div class="bg-elevated/70 border border-borderline rounded p-3 space-y-2">
             <div class="flex items-center justify-between">
               <label class="text-[11.5px] font-semibold text-[#f1f5f9] flex items-center gap-1.5 cursor-pointer">
@@ -424,7 +424,7 @@
             </div>
           </div>
 
-          <!-- 4. Capas Vectoriales y Mapa Base -->
+          <!-- 4. Vector Layers and Basemap -->
           <div class="bg-elevated/70 border border-borderline rounded p-3 space-y-2 text-[11.5px]">
             <span class="block text-[11px] font-semibold text-[#94a3b8]" data-i18n="section_aux_layers">Auxiliary Layers & Basemap</span>
             
@@ -455,7 +455,7 @@
               <input type="checkbox" id="layer-gibs" class="accent-water w-4 h-4">
             </label>
 
-            <!-- Selector de Mapa Base -->
+            <!-- Basemap Selector -->
             <div class="pt-2 border-t border-borderline">
               <span class="text-[#94a3b8] block text-[10px] mb-1" data-i18n="label_basemap">Basemap:</span>
               <select id="basemap-selector" class="w-full bg-base border border-borderline rounded px-2 py-1 text-[#f1f5f9] text-[11.5px]">
@@ -474,11 +474,11 @@
         </div>
 
         <!-- ------------------------------------------------------------- -->
-        <!-- PESTAÑA 3: RADAR Y PROCESAMIENTO                              -->
+        <!-- TAB 3: RADAR & PROCESSING                                     -->
         <!-- ------------------------------------------------------------- -->
         <div id="tab-panel-radar" class="hidden p-3.5 space-y-3.5">
           
-          <!-- Cobertura de Bloques SAR NASA ASF -->
+          <!-- NASA ASF Orbital SAR Swaths Coverage -->
           <div class="bg-elevated/70 border border-borderline rounded p-3 space-y-2">
             <div class="flex items-center justify-between">
               <label class="text-[11.5px] font-semibold text-water flex items-center gap-1.5 cursor-pointer">
@@ -515,12 +515,12 @@
                 Loading satellite catalog...
               </div>
               <div id="sar-scenes-reader-list" class="max-h-20 overflow-y-auto space-y-1 pt-1 border-t border-borderline">
-                <!-- Lista de escenas poblada por JS -->
+                <!-- Scenes list populated by JS -->
               </div>
             </div>
           </div>
 
-          <!-- Calibración del Umbral de la Simulación -->
+          <!-- Simulation Threshold Calibration -->
           <div class="bg-elevated/70 border border-borderline rounded p-3 space-y-2">
             <div class="flex justify-between items-center text-[11px] font-mono">
               <span class="text-[#94a3b8]" data-i18n="label_sim_threshold">Simulation Threshold:</span>
@@ -541,7 +541,7 @@
             </div>
           </div>
 
-          <!-- Parámetros del Motor DEM -->
+          <!-- DEM Engine Parameters -->
           <div class="bg-elevated/70 border border-borderline rounded p-3 space-y-2 text-[11px]">
             <span class="block text-[11px] font-semibold text-[#94a3b8]" data-i18n="section_dem_params">DEM & Topography Parameters</span>
             <div class="grid grid-cols-2 gap-2">
@@ -574,7 +574,7 @@
             </div>
           </div>
 
-          <!-- Matrices Colab Multitemporales -->
+          <!-- Multitemporal Colab Matrices -->
           <div class="bg-elevated/70 border border-borderline rounded p-3 space-y-2">
             <div class="flex items-center justify-between">
               <label class="text-[11.5px] font-semibold text-crops flex items-center gap-1.5 cursor-pointer">
@@ -608,13 +608,13 @@
     </aside>
 
     <!-- =================================================================== -->
-    <!-- 3. LIENZO CARTOGRÁFICO PRINCIPAL (>93% DEL ÁREA VISUAL)            -->
+    <!-- 3. PRIMARY CARTOGRAPHIC CANVAS (>93% OF VISUAL AREA)               -->
     <!-- =================================================================== -->
     <div id="map-container" class="flex-1 relative w-full h-full overflow-hidden">
-      <!-- Mapa Leaflet interactivo -->
+      <!-- Interactive Leaflet Map -->
       <div id="map" class="w-full h-full bg-base z-10"></div>
 
-      <!-- HUD Top-Right: Telemetría de Vista y Cursor -->
+      <!-- Top-Right HUD: Viewport and Cursor Telemetry -->
       <div class="absolute top-3 right-3 z-20 bg-panel/90 border border-borderline rounded px-3 py-1.5 text-[11px] flex items-center gap-2.5 backdrop-blur shadow-lg">
         <div class="w-1.5 h-1.5 rounded-full bg-water animate-pulse"></div>
         <span class="text-[#f1f5f9] font-medium" id="active-basin-name">Camaná - Majes - Colca Basin</span>
@@ -622,7 +622,7 @@
         <span class="font-mono text-[#94a3b8]" id="hud-track-info">4 Active Swaths</span>
       </div>
 
-      <!-- Leyenda Cartográfica Plegable (Inferior Derecha) -->
+      <!-- Collapsible Cartographic Legend (Bottom Right) -->
       <div id="map-legend" class="absolute bottom-[108px] right-3 z-20 bg-panel/95 backdrop-blur border border-borderline rounded p-2.5 shadow-2xl text-[11px] space-y-1.5 font-mono max-w-[240px]">
         <div class="flex items-center justify-between pb-1 mb-1 border-b border-borderline">
           <span class="font-semibold text-[#f1f5f9]" data-i18n="legend_title">SAR SYMBOLOGY</span>
@@ -650,7 +650,7 @@
         </div>
       </div>
 
-      <!-- Barra Flotante Temporal Inferior (Ciclos de 12 días) -->
+      <!-- Bottom Floating Temporal Bar (12-Day Cycles) -->
       <div class="absolute bottom-3 left-3 right-3 z-20 flex justify-center pointer-events-none">
         <div class="bg-panel/95 backdrop-blur-md border border-borderline rounded-lg px-3 py-2 shadow-2xl flex items-center gap-3 max-w-4xl w-full pointer-events-auto">
           <button id="btn-play-cycle" onclick="togglePlayCycles()" class="h-7 px-2.5 rounded bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium text-[11px] flex items-center gap-1.5 transition shrink-0 cursor-pointer">
@@ -663,7 +663,7 @@
               <span class="text-crops font-bold shrink-0 ml-2" id="timeline-phase-label" data-i18n="timeline_phase_default">CRITICAL FLOOD ALERT</span>
             </div>
             <div class="grid grid-cols-7 gap-1" id="orbital-timeline-steps">
-              <!-- Botones orbitales inyectados dinámicamente por app.js -->
+              <!-- Orbital cycle buttons injected dynamically by app.js -->
             </div>
           </div>
         </div>
@@ -673,7 +673,7 @@
   </main>
 
   <!-- ===================================================================== -->
-  <!-- 4. VENTANA MODAL: ANÁLISIS POLARIMÉTRICO MULTITEMPORAL NISAR GCOV      -->
+  <!-- 4. MODAL WINDOW: MULTITEMPORAL NISAR GCOV POLARIMETRIC ANALYSIS       -->
   <!-- ===================================================================== -->
   <div id="nisar-colab-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="bg-panel border border-borderline rounded-lg max-w-5xl w-full p-4 shadow-2xl space-y-3">
@@ -712,7 +712,7 @@
     </div>
   </div>
 
-  <!-- Funciones Auxiliares de Navegación UI -->
+  <!-- UI Navigation Helper Functions -->
   <script>
     function switchSidebarTab(tabName) {
       ['resumen', 'capas', 'radar'].forEach(t => {
@@ -745,7 +745,7 @@
 
   <!-- Leaflet GIS Engine -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <!-- Lógica y Módulos Científicos -->
+  <!-- Scientific Modules and Runtime Logic -->
   <script src="js/river-geometry.js"></script>
   <script src="js/arequipa-data.js"></script>
   <script src="js/sar-math-engine.js"></script>
