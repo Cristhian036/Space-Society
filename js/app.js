@@ -203,25 +203,25 @@ function renderTimelineControls() {
   ORBITAL_CYCLES.forEach((cyc, idx) => {
     const isActive = idx === currentCycleIndex;
     const btn = document.createElement('button');
-    btn.className = `px-2 py-1 rounded-lg border text-left transition flex flex-col justify-between ${
+    btn.className = `px-1.5 py-1 rounded border text-left transition flex flex-col justify-between cursor-pointer ${
       isActive
-        ? 'bg-cyan-950/90 border-cyan-400 text-white shadow-md shadow-cyan-500/20'
-        : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:bg-slate-800/70 hover:text-slate-200'
+        ? 'bg-[#151c25] border-water text-[#f1f5f9]'
+        : 'bg-base border-borderline text-[#94a3b8] hover:bg-[#151c25] hover:text-[#f1f5f9]'
     }`;
     btn.onclick = () => selectOrbitalCycle(idx);
 
-    let dotColor = 'bg-emerald-400';
-    if (cyc.floodIntensity >= 0.8) dotColor = 'bg-rose-500';
-    else if (cyc.floodIntensity >= 0.5) dotColor = 'bg-amber-400';
-    else if (cyc.floodIntensity >= 0.15) dotColor = 'bg-yellow-400';
+    let dotColor = 'bg-ok';
+    if (cyc.floodIntensity >= 0.8) dotColor = 'bg-danger';
+    else if (cyc.floodIntensity >= 0.5) dotColor = 'bg-crops';
+    else if (cyc.floodIntensity >= 0.15) dotColor = 'bg-crops';
 
     btn.innerHTML = `
       <div class="flex items-center justify-between w-full">
-        <span class="text-[10px] font-mono font-bold ${isActive ? 'text-cyan-300' : 'text-slate-400'}">+${cyc.dayOffset}d</span>
-        <span class="w-2 h-2 rounded-full ${dotColor}"></span>
+        <span class="text-[9.5px] font-mono font-semibold ${isActive ? 'text-water' : 'text-[#64748b]'}">+${cyc.dayOffset}d</span>
+        <span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span>
       </div>
-      <div class="text-[10px] font-medium truncate mt-0.5">${cyc.shortDate.split(' ')[0]} ${cyc.shortDate.split(' ')[1] || ''}</div>
-      <div class="text-[9px] font-mono text-slate-400">${cyc.sarBackscatterDb} dB</div>
+      <div class="text-[9.5px] font-medium truncate mt-0.5">${cyc.shortDate.split(' ')[0]} ${cyc.shortDate.split(' ')[1] || ''}</div>
+      <div class="text-[9px] font-mono text-[#64748b] tabular-nums">${cyc.sarBackscatterDb} dB</div>
     `;
     container.appendChild(btn);
   });
@@ -242,13 +242,13 @@ function renderBackscatterChart() {
     col.onclick = () => selectOrbitalCycle(idx);
 
     const barColor = isActive
-      ? (isFlooded ? 'bg-cyan-400 border-2 border-white' : 'bg-emerald-400 border-2 border-white')
-      : (isFlooded ? 'bg-cyan-600/70 group-hover:bg-cyan-400' : 'bg-slate-700 group-hover:bg-slate-500');
+      ? (isFlooded ? 'bg-water' : 'bg-ok')
+      : (isFlooded ? 'bg-water/40 group-hover:bg-water/80' : 'bg-[#202833] group-hover:bg-[#334155]');
 
     col.innerHTML = `
-      <span class="text-[9px] font-mono ${isActive ? 'text-cyan-300 font-bold' : 'text-slate-500'} mb-0.5">${cyc.sarBackscatterDb}</span>
+      <span class="text-[9px] font-mono ${isActive ? 'text-water font-bold' : 'text-[#64748b]'} mb-0.5 tabular-nums">${cyc.sarBackscatterDb}</span>
       <div class="w-full rounded-t transition-all ${barColor}" style="height: ${pct}%"></div>
-      <span class="text-[9px] font-mono text-slate-400 mt-0.5">+${cyc.dayOffset}d</span>
+      <span class="text-[9px] font-mono text-[#94a3b8] mt-0.5 tabular-nums">+${cyc.dayOffset}d</span>
     `;
     chart.appendChild(col);
   });
@@ -563,23 +563,48 @@ function updateAllVisuals(flyToBasin = false) {
   }
 
   // 4. ACTUALIZAR PANELES DE LECTURA SAR Y TELEMETRÍA
-  document.getElementById('detected-rivers-count').textContent = `${detectedRiverCount} RÍOS DE REFERENCIA (${totalDetectedVertices.toLocaleString()} PTS)`;
-  document.getElementById('header-active-stats').textContent = `${currentMatchedScenes.length} BLOQUES SAR · ${detectedRiverCount} RÍOS DE REFERENCIA`;
+  const refSuffix = typeof t === 'function' ? t('ref_rivers_count_suffix') : ' REFERENCE RIVERS';
+  document.getElementById('detected-rivers-count').textContent = `${detectedRiverCount}${refSuffix}`;
+  document.getElementById('header-active-stats').textContent = typeof t === 'function' ? t('header_status') : 'NISAR L2 GCOV · 20m NATIVE MESH';
 
   const bMetrics = cycle.metrics[currentBasin];
-  document.getElementById('pass-badge').textContent = `🛰️ ${cycle.label.toUpperCase()}`;
+  const passPrefix = typeof t === 'function' ? t('pass_badge_prefix') : '🛰️ ORBITAL CYCLE ';
+  document.getElementById('pass-badge').textContent = `${passPrefix}+${cycle.dayOffset}d`;
+
+  const cycleInfo = typeof getCycleText === 'function' ? getCycleText(currentCycleIndex) : null;
+  const riskLevelText = cycleInfo ? cycleInfo.riskLevel : cycle.riskLevel;
+  const riskDescText = cycleInfo ? cycleInfo.summary : cycle.summary;
+  const phaseText = cycleInfo ? cycleInfo.phase : cycle.phase;
+
   const riskEl = document.getElementById('risk-level');
-  riskEl.textContent = cycle.riskLevel;
-  riskEl.className = `text-[10px] font-mono px-2 py-0.5 rounded border font-bold ${cycle.riskClass}`;
+  riskEl.textContent = riskLevelText;
+  const riskClassMap = {
+    'ALERTA ROJA': 'text-danger border-danger/40 bg-danger/10',
+    'CRITICAL FLOOD ALERT': 'text-danger border-danger/40 bg-danger/10',
+    'ALERTA ROJA (DESBORDE)': 'text-danger border-danger/40 bg-danger/10',
+    'ALERTA MODERADA': 'text-crops border-crops/40 bg-crops/10',
+    'MODERATE ALERT': 'text-crops border-crops/40 bg-crops/10',
+    'NORMAL': 'text-ok border-ok/40 bg-ok/10',
+    'GREEN LEVEL (BASE)': 'text-ok border-ok/40 bg-ok/10',
+    'NIVEL VERDE (BASE)': 'text-ok border-ok/40 bg-ok/10'
+  };
+  riskEl.className = `text-[10px] font-mono px-2 py-0.5 rounded border font-bold ${riskClassMap[riskLevelText] || 'text-danger border-danger/40 bg-danger/10'}`;
 
   document.getElementById('ana-code').textContent = basin.anaCode;
   document.getElementById('stat-flow').textContent = bMetrics.flow;
-  document.getElementById('risk-desc').textContent = cycle.summary;
-  document.getElementById('sar-width').textContent = bMetrics.width;
-  document.getElementById('stat-hectares').textContent = bMetrics.ha;
+  document.getElementById('risk-desc').textContent = riskDescText;
+  const widthPrefix = typeof t === 'function' ? t('metric_width_prefix') : 'Width: ';
+  document.getElementById('sar-width').textContent = `${widthPrefix}${bMetrics.width}`;
+  document.getElementById('stat-hectares').textContent = bMetrics.ha ? bMetrics.ha.replace(' ha', '') : '0';
   document.getElementById('stat-pop').textContent = bMetrics.pop;
-  document.getElementById('active-basin-name').textContent = currentTrackFilter === 'peru_all' ? 'Perú Completo (118 Bloques SAR)' : basin.name;
-  document.getElementById('timeline-phase-label').textContent = `${cycle.shortDate} — ${cycle.phase}`;
+  
+  const basinName = currentTrackFilter === 'peru_all' 
+    ? (typeof t === 'function' ? t('btn_peru_all') : 'National Peru (118 SAR)')
+    : (typeof getBasinName === 'function' ? getBasinName(currentBasin) : basin.name);
+  document.getElementById('active-basin-name').textContent = basinName;
+  const sidebarTitle = document.getElementById('sidebar-basin-title');
+  if (sidebarTitle) sidebarTitle.textContent = basinName;
+  document.getElementById('timeline-phase-label').textContent = `${cycle.shortDate} — ${phaseText}`;
 
   const activeDate = getTrackDateForCycle(basin.primaryTrack, cycle);
   updateGibsLayer(activeDate);
@@ -653,11 +678,12 @@ function renderOrbitalSwaths(scenes) {
     });
   }
 
-  document.getElementById('asf-track-label').textContent = `${scenes.length} Bloques SAR Leídos`;
-  document.getElementById('asf-date-label').textContent = currentTrackFilter === 'peru_all' ? 'Cobertura Nacional' : `Ciclo +${ORBITAL_CYCLES[currentCycleIndex].dayOffset}d`;
+  const trackLabelSuffix = typeof t === 'function' ? t('hud_swaths_suffix') : ' Active Swaths';
+  document.getElementById('asf-track-label').textContent = `${scenes.length}${trackLabelSuffix}`;
+  document.getElementById('asf-date-label').textContent = currentTrackFilter === 'peru_all' ? (typeof t === 'function' ? t('btn_peru_all') : 'National Peru') : `+${ORBITAL_CYCLES[currentCycleIndex].dayOffset}d`;
   const granEl = document.getElementById('asf-granule-name');
-  granEl.textContent = scenes.length > 0 ? `Activos: ${scenes.map(s => 'T' + s.track).slice(0, 6).join(', ')}... (${scenes.length} total)` : 'Sin bloques';
-  document.getElementById('hud-track-info').textContent = `${scenes.length} Bloques SAR Activos`;
+  granEl.textContent = scenes.length > 0 ? `Tracks: ${scenes.map(s => 'T' + s.track).slice(0, 6).join(', ')}... (${scenes.length} total)` : 'No active tracks';
+  document.getElementById('hud-track-info').textContent = `${scenes.length}${trackLabelSuffix}`;
 
   if (isRealSarOverlayActive) {
     showAllMatchedSceneOverlays();

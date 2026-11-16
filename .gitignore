@@ -1,11 +1,30 @@
+# Dependencies
+node_modules/
 
-# Python & DEM Cache
+# Python & Cache
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .dem_cache/
 .pytest_cache/
+.venv/
+env/
+venv/
+
+# Heavy Raw Data & Simulation Outputs
 output/
 *.h5
 *.hdf5
 hydro_rivers_v3.sqlite
 .playwright-cli/
+
+# Scratch & Dev Previews
+scratch/
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# User Prompt & Design Reference Uploads
+especificaci_n_de_dise_o_ui_ux_space_society_nisar_banda_l.md
+space_society_monitoreo_satelital_de_r_os_e_inundaciones_nisar_banda_l.html
