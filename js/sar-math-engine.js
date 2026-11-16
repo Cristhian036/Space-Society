@@ -21,12 +21,16 @@ let mathAbort = null;
 let mathMoveTimer = null;
 let mathLastResult = null;
 
-// In production/domain or reverse proxy, use relative '/api/compute-rivers'
-// On local dev without proxy, fall back to 'http://localhost:8050/api/compute-rivers'
-const HYDRO_API = (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
-  (window.location.port === '8080' || window.location.port === '80' || window.location.port === '443' || window.location.port === '' || !window.location.hostname.includes('localhost'))
-  ? '/api/compute-rivers'
-  : 'http://localhost:8050/api/compute-rivers';
+// In production with dedicated API subdomain:
+// https://spacesociety.nooxtools.me -> https://spacesociety-api.nooxtools.me/api/compute-rivers
+// In single-domain reverse proxy: /api/compute-rivers
+// In local dev without proxy: http://localhost:8050/api/compute-rivers
+const HYDRO_API = window.location.hostname === 'spacesociety.nooxtools.me'
+  ? 'https://spacesociety-api.nooxtools.me/api/compute-rivers'
+  : (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
+    (window.location.port === '8080' || window.location.port === '80' || window.location.port === '443' || window.location.port === '' || !window.location.hostname.includes('localhost'))
+    ? '/api/compute-rivers'
+    : 'http://localhost:8050/api/compute-rivers';
 
 function initMathEngineLayer() {
   if (!map) return;

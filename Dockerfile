@@ -33,4 +33,4 @@ EXPOSE 8050
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8050
 
-CMD ["python", "hydro_sar_microservice.py"]
+CMD ["python", "backend/hydro_sar_microservice.py"]
